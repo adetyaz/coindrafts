@@ -1,7 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { GROQ_API_KEY } from '$env/static/private';
 import { getNews } from '$lib/server/sosovalue';
-import Groq from 'groq-sdk';
+import { getAiClient } from '$lib/server/aiCompute';
 
 interface Pick {
 	sector: string;
@@ -81,9 +80,9 @@ export async function POST({ request, cookies }) {
 	const prompt = buildPrompt(picks, status ?? 'MATCH ENDED', newsHeadlines);
 
 	try {
-		const groq = new Groq({ apiKey: GROQ_API_KEY });
-		const chat = await groq.chat.completions.create({
-			model: 'openai/gpt-oss-120b',
+		const { client, model } = getAiClient();
+		const chat = await client.chat.completions.create({
+			model,
 			messages: [{ role: 'user', content: prompt }],
 			// gpt-oss is a reasoning model — it spends part of this budget on an
 			// internal reasoning trace before emitting real content. 150 was tuned
