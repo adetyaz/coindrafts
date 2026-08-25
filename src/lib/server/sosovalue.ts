@@ -31,8 +31,12 @@ export async function ssv<T>(
 		});
 
 		if (res.status === 429) {
-			const body = await res.json();
-			const wait = (body.details?.retry_after ?? 60) * 1000;
+			const body = await res.json().catch(() => ({}));
+			// SoSoValue's retry_after (or our own fallback) can be far longer than
+			// a page load should ever block for — with getTokensWithPrices firing
+			// 30 of these in parallel, an unbounded wait here turned a transient
+			// rate limit into multi-minute hangs on /draft. Cap it hard.
+			const wait = Math.min((body.details?.retry_after ?? 2) * 1000, 5000);
 			await new Promise((r) => setTimeout(r, wait));
 			attempts++;
 			continue;
@@ -88,7 +92,10 @@ export const getSectors = () => ssv('/currencies/sector-spotlight', 300); // 5mi
 export const getEtfHistory = (symbol: string) =>
 	ssv('/etfs/summary-history', 300, { symbol, country_code: 'US' }); // 5min
 export const getNews = () => ssv('/news/featured', 900, { pageNum: '1', pageSize: '20' }); // 15min
-export const getSnapshot = (id: string) => ssv(`/currencies/${id}/market-snapshot`, 60); // 60s
+// 5min, not 60s — this is called up to 30x in parallel per getTokensWithPrices
+// refresh (one snapshot request per token); a tight TTL here was the main
+// driver of a live SoSoValue rate-limit hit during testing.
+export const getSnapshot = (id: string) => ssv(`/currencies/${id}/market-snapshot`, 300);
 
 // Merged token list with live price/change data
 // Cached separately for 2 minutes so we don't re-merge on every request
@@ -138,7 +145,7 @@ export async function getTokensWithPrices(limit = 30): Promise<TokenWithPrice[]>
 		};
 	});
 
-	// Cache merged result for 2 minutes
-	cache.set(cacheKey, { data: merged, expires: Date.now() + 120_000 });
+	// Cache merged result for 5 minutes — matches the per-snapshot TTL above
+	cache.set(cacheKey, { data: merged, expires: Date.now() + 300_000 });
 	return merged;
 }

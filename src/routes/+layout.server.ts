@@ -1,7 +1,7 @@
 import { parseSessionToken, getUserById } from '$lib/server/auth';
 import { redirect } from '@sveltejs/kit';
 
-const PROTECTED = ['/contest', '/draft'];
+const PROTECTED = ['/contest', '/draft', '/matchmaking'];
 
 export async function load({ cookies, url }) {
 	const token = cookies.get('session');

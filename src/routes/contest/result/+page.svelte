@@ -80,8 +80,12 @@
 			if (res.ok) {
 				const data = await res.json();
 				aiBreakdown = data.breakdown ?? '';
+			} else {
+				const err = await res.json().catch(() => ({}));
+				console.error('[breakdown] failed:', res.status, err.error, err.detail);
 			}
-		} catch {
+		} catch (e) {
+			console.error('[breakdown] fetch threw:', e);
 			// Non-fatal — fall back to static text below
 		} finally {
 			aiLoading = false;

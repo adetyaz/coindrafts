@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Toast from '$lib/components/Toast.svelte';
 	import { toast } from '$lib/toast';
+	import { resolve } from '$app/paths';
 
 	type OpenLobby = {
 		id: string;
@@ -61,7 +62,7 @@
 		const data = await res.json();
 		if (data.status === 'matched') {
 			toast('Lobby filled — heading to draft!', 'success');
-			goto(`/draft?lobbyId=${data.lobbyId}`);
+			goto(resolve(`/draft?lobbyId=${data.lobbyId}`));
 			return;
 		}
 
@@ -72,7 +73,7 @@
 			if (d.status === 'matched') {
 				stopPolling();
 				toast('Lobby filled — heading to draft!', 'success');
-				goto(`/draft?lobbyId=${d.lobbyId}`);
+				goto(resolve(`/draft?lobbyId=${d.lobbyId}`));
 			}
 		}, 3000);
 	}
@@ -139,7 +140,7 @@
 		// No longer in the "waiting" list — either it started or errored out
 		stopPolling();
 		toast('Lobby started — heading to draft!', 'success');
-		goto(`/draft?lobbyId=${waitingLobbyId}`);
+		goto(resolve(`/draft?lobbyId=${waitingLobbyId}`));
 	}
 
 	async function startLobby() {
@@ -160,11 +161,14 @@
 <div class="mx-auto max-w-[1360px] px-7 pt-7 pb-18">
 	<div class="mb-5 flex flex-wrap items-end justify-between gap-6">
 		<div>
-			<div class="mb-2.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary-ink uppercase">
+			<div
+				class="mb-2.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary-ink uppercase"
+			>
 				Ranked lobby
 			</div>
 			<h1 class="text-[40px] leading-none font-black tracking-[-0.04em]">
-				{#if view === 'menu'}Pick your lobby size{:else if view === 'quick-searching'}Building your room{:else if view === 'browse'}Open lobbies{:else}Waiting room{/if}
+				{#if view === 'menu'}Pick your lobby size{:else if view === 'quick-searching'}Building your
+					room{:else if view === 'browse'}Open lobbies{:else}Waiting room{/if}
 			</h1>
 			<p class="mt-2 max-w-[52ch] text-sm text-text-muted">
 				Everyone drafts the same five sectors. You place against the whole room, not one opponent.
@@ -175,7 +179,9 @@
 	{#if view === 'menu'}
 		<div class="flex flex-wrap gap-4.5">
 			<div class="hero-coral dot-grid min-w-0 flex-[1_1_520px] rounded-[24px] p-[34px]">
-				<div class="mb-5 w-fit rounded-full bg-text px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary uppercase">
+				<div
+					class="mb-5 w-fit rounded-full bg-text px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary uppercase"
+				>
 					Quick match
 				</div>
 				<div class="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
@@ -188,7 +194,9 @@
 								? 'background:var(--color-ink);color:var(--color-primary);border:1.5px solid var(--color-ink)'
 								: 'background:rgba(26,36,33,0.06);color:var(--color-ink);border:1.5px solid rgba(26,36,33,0.18)'}
 						>
-							<div class="font-mono text-[34px] leading-none font-bold tracking-[-0.03em]">{size}</div>
+							<div class="font-mono text-[34px] leading-none font-bold tracking-[-0.03em]">
+								{size}
+							</div>
 							<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em]">players</div>
 						</button>
 					{/each}
@@ -202,7 +210,9 @@
 			</div>
 
 			<div class="frost-panel min-w-0 flex-[1_1_280px] rounded-[20px] p-6">
-				<h3 class="mb-2 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Open lobbies</h3>
+				<h3 class="mb-2 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+					Open lobbies
+				</h3>
 				<p class="mb-4 text-xs text-text-muted">
 					Create a lobby and invite friends, or join one that's still filling up.
 				</p>
@@ -223,17 +233,30 @@
 			</div>
 		</div>
 	{:else if view === 'quick-searching'}
-		<div class="hero-coral dot-grid relative flex min-h-[440px] max-w-[720px] flex-col justify-between overflow-hidden rounded-[24px] p-11">
-			<div class="pointer-events-none absolute top-20 right-[-70px] flex h-80 w-80 items-center justify-center">
-				<div class="anim-pulse absolute h-52 w-52 rounded-full border-2 border-[rgba(26,36,33,0.28)]"></div>
-				<div class="anim-pulse absolute h-52 w-52 rounded-full border-2 border-[rgba(26,36,33,0.28)]" style="animation-delay:0.85s"></div>
+		<div
+			class="hero-coral dot-grid relative flex min-h-[440px] max-w-[720px] flex-col justify-between overflow-hidden rounded-[24px] p-11"
+		>
+			<div
+				class="pointer-events-none absolute top-20 right-[-70px] flex h-80 w-80 items-center justify-center"
+			>
+				<div
+					class="anim-pulse absolute h-52 w-52 rounded-full border-2 border-[rgba(26,36,33,0.28)]"
+				></div>
+				<div
+					class="anim-pulse absolute h-52 w-52 rounded-full border-2 border-[rgba(26,36,33,0.28)]"
+					style="animation-delay:0.85s"
+				></div>
 				<div class="font-mono text-[46px] font-bold tracking-[-0.04em]">{elapsedStr}</div>
 			</div>
-			<span class="relative flex w-fit items-center gap-2 rounded-full bg-text px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary uppercase">
+			<span
+				class="relative flex w-fit items-center gap-2 rounded-full bg-text px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary uppercase"
+			>
 				<span class="anim-blink h-1.5 w-1.5 rounded-full bg-primary"></span>Filling
 			</span>
-			<div class="relative max-w-[24ch]">
-				<div class="text-[46px] leading-[0.94] font-black tracking-[-0.05em]">Filling a {quickSize}-player lobby</div>
+			<div class="relative">
+				<div class="text-[46px] leading-[0.94] font-black tracking-[-0.05em]">
+					Filling a {quickSize}-player lobby
+				</div>
 				<p class="mt-3 text-[15px] opacity-80">Draft opens the moment the last seat fills.</p>
 			</div>
 			<button
@@ -245,11 +268,14 @@
 		</div>
 	{:else if view === 'browse'}
 		<div>
-			<button class="mb-4 cursor-pointer text-xs font-bold text-primary-ink" onclick={() => (view = 'menu')}
-				>&larr; Back</button
+			<button
+				class="mb-4 cursor-pointer text-xs font-bold text-primary-ink"
+				onclick={() => (view = 'menu')}>&larr; Back</button
 			>
 			{#if openLobbies.length === 0}
-				<div class="rounded-[20px] border border-dashed border-border-strong bg-surface py-14 text-center">
+				<div
+					class="rounded-[20px] border border-dashed border-border-strong bg-surface py-14 text-center"
+				>
 					<p class="text-sm font-bold text-text-muted">No open lobbies right now</p>
 					<button
 						class="mt-3 cursor-pointer text-xs font-extrabold text-primary-ink underline"
@@ -260,7 +286,9 @@
 				<div class="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3.5">
 					{#each openLobbies as lobby (lobby.id)}
 						{@const full = lobby.size != null && lobby.headcount >= lobby.size}
-						<div class="rounded-[20px] border border-border bg-surface p-[22px] transition-transform hover:-translate-y-1">
+						<div
+							class="rounded-[20px] border border-border bg-surface p-[22px] transition-transform hover:-translate-y-1"
+						>
 							<div class="mb-4 flex items-start justify-between gap-3">
 								<div class="min-w-0">
 									<div class="truncate text-[19px] font-black tracking-[-0.02em]">
@@ -272,7 +300,8 @@
 								</div>
 								<span
 									class="shrink-0 rounded-full px-2.5 py-1 font-mono text-[10px] font-bold tracking-[0.1em] uppercase"
-									style="background:var(--color-primary-muted);color:var(--color-coral-ink)">ranked</span
+									style="background:var(--color-primary-muted);color:var(--color-coral-ink)"
+									>ranked</span
 								>
 							</div>
 							<div class="mb-2.5 flex items-baseline gap-2">
@@ -285,9 +314,9 @@
 								<div class="mb-4 h-2 overflow-hidden rounded-full bg-surface-alt">
 									<div
 										class="h-full"
-										style="width:{Math.round((lobby.headcount / lobby.size) * 100)}%;background:{full
-											? 'var(--color-mint)'
-											: 'var(--color-primary)'}"
+										style="width:{Math.round(
+											(lobby.headcount / lobby.size) * 100
+										)}%;background:{full ? 'var(--color-mint)' : 'var(--color-primary)'}"
 									></div>
 								</div>
 							{/if}
@@ -310,7 +339,9 @@
 			<div class="frost-panel rounded-[24px] p-7">
 				<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
 					<div>
-						<div class="mb-2.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+						<div
+							class="mb-2.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase"
+						>
 							Waiting room
 						</div>
 						<div class="flex items-baseline gap-2.5">
@@ -341,10 +372,12 @@
 				</div>
 			</div>
 
-			<div class="hero-coral dot-grid flex flex-wrap items-center justify-between gap-5 rounded-[24px] p-7">
+			<div
+				class="hero-coral dot-grid flex flex-wrap items-center justify-between gap-5 rounded-[24px] p-7"
+			>
 				<div class="min-w-0">
 					{#if isCreator}
-						<div class="mb-2 text-[11px] font-extrabold tracking-[0.12em] opacity-75 uppercase">
+						<div class="mb-2 text-[11px] font-extrabold tracking-[0.12em] uppercase opacity-75">
 							You host this lobby
 						</div>
 						<div class="text-2xl font-black tracking-[-0.03em]">

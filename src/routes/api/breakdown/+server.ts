@@ -83,9 +83,13 @@ export async function POST({ request, cookies }) {
 	try {
 		const groq = new Groq({ apiKey: GROQ_API_KEY });
 		const chat = await groq.chat.completions.create({
-			model: 'llama-3.3-70b-versatile',
+			model: 'openai/gpt-oss-120b',
 			messages: [{ role: 'user', content: prompt }],
-			max_tokens: 150,
+			// gpt-oss is a reasoning model — it spends part of this budget on an
+			// internal reasoning trace before emitting real content. 150 was tuned
+			// for the old non-reasoning llama model and risks truncating before
+			// any content comes through; verified 400 leaves headroom for both.
+			max_tokens: 400,
 			temperature: 0.7
 		});
 
