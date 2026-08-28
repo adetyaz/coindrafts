@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { researchReads, users } from '$lib/server/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { parseSessionToken } from '$lib/server/auth';
+import { bumpResearchStreak } from '$lib/server/term-of-day';
 
 const RESEARCH_XP = 20;
 
@@ -54,6 +55,8 @@ export async function POST({ request, cookies }) {
 			})
 			.where(eq(users.id, parsed.userId));
 	}
+
+	await bumpResearchStreak(parsed.userId);
 
 	return json({ awarded: true, xp: RESEARCH_XP, sector });
 }

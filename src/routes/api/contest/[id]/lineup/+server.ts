@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { contests, lineups, lineupPicks } from '$lib/server/schema';
 import { parseSessionToken } from '$lib/server/auth';
 import { getSnapshot, extractPrice } from '$lib/server/sosovalue';
+import { pickScrimmageBot, draftBotLineup } from '$lib/server/botDraft';
 
 export async function POST({ params, request, cookies }) {
 	const token = cookies.get('session');
@@ -82,6 +83,46 @@ export async function POST({ params, request, cookies }) {
 		const windowDays = existingContest.type === 'weekly' ? 7 : 1;
 		const startAt = new Date();
 		const endAt = new Date(Date.now() + windowDays * 24 * 60 * 60 * 1000);
+
+		// Scrimmage contests are created directly (never via matchmaking_queue),
+		// so bots-service never sees them. Assign a real bot opponent right
+		// here — same moment the human's entry prices are captured, so both
+		// sides reflect the same market moment. A failure here shouldn't block
+		// the human's own submission; the existing synthetic-score fallback at
+		// resolution time still covers it if this doesn't complete.
+		if (existingContest.isPaper && !existingContest.userBId) {
+			try {
+				const bot = pickScrimmageBot();
+				const botPicks = await draftBotLineup();
+				const [botLineup] = await db
+					.insert(lineups)
+					.values({ contestId, userId: bot.id, locked: true, finalScore: '0' })
+					.returning({ id: lineups.id });
+
+				const botSnapshots = await Promise.all(
+					botPicks.map((p) => getSnapshot(p.currencyId).catch(() => null))
+				);
+				for (let i = 0; i < botPicks.length; i++) {
+					const entryPrice = extractPrice(botSnapshots[i]);
+					await db.insert(lineupPicks).values({
+						lineupId: botLineup.id,
+						tokenSymbol: botPicks[i].symbol.toUpperCase(),
+						tokenName: botPicks[i].name,
+						sector: botPicks[i].sector,
+						currencyId: botPicks[i].currencyId,
+						entryPrice: String(entryPrice),
+						exitPrice: String(entryPrice),
+						pctChange: '0',
+						score: '0'
+					});
+				}
+
+				await db.update(contests).set({ userBId: bot.id }).where(eq(contests.id, contestId));
+			} catch (e) {
+				console.error('[contest/lineup] Scrimmage bot draft failed, falling back to synthetic score:', e);
+			}
+		}
+
 		await db
 			.update(contests)
 			.set({ status: 'live', startAt, endAt })

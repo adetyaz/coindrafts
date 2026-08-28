@@ -25,6 +25,8 @@ export async function GET({ cookies }) {
 		xpTotal: user.xpTotal,
 		paperXpTotal: user.paperXpTotal,
 		streak: user.streak,
+		researchStreak: user.researchStreak,
+		freeHitsAvailable: user.freeHitsAvailable,
 		matchmakingStatus: user.matchmakingStatus,
 		activeBoosts: user.activeBoosts || []
 	});

@@ -28,10 +28,14 @@ export async function awardWinBadges(userId: string): Promise<string[]> {
 		.limit(1)
 		.then((rows) => rows[0] ?? null);
 
+	// Scrimmage wins (contests.isPaper) never count toward real milestones —
+	// the call sites already skip calling this function for a paper win
+	// itself, but without this filter a later real win would still count
+	// every past Scrimmage win in the total (H-03).
 	const contestWins = await db
 		.select({ id: contests.id })
 		.from(contests)
-		.where(eq(contests.winnerId, userId))
+		.where(and(eq(contests.winnerId, userId), eq(contests.isPaper, false)))
 		.then((rows) => rows.length);
 
 	const lobbyWins = await db

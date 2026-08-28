@@ -1,5 +1,5 @@
 import { parseSessionToken } from '$lib/server/auth';
-import { getAiClient } from '$lib/server/aiCompute';
+import { createChatCompletion } from '$lib/server/aiCompute';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type SectorInfo = { id: string; name: string; change: number | null };
@@ -88,11 +88,8 @@ export async function POST({ request, cookies, fetch }) {
 	const systemPrompt = buildSystemPrompt(sectors, tokens, news);
 	const trimmedHistory = messages.slice(-MAX_HISTORY);
 
-	const { client, model } = getAiClient();
-
 	try {
-		const stream = await client.chat.completions.create({
-			model,
+		const stream = await createChatCompletion({
 			messages: [{ role: 'system', content: systemPrompt }, ...trimmedHistory],
 			max_tokens: 400,
 			temperature: 0.6,

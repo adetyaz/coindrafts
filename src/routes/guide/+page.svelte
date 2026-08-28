@@ -48,11 +48,11 @@
 						{
 							label: 'Head-to-head',
 							title: 'Find Match',
-							body: "Queues you against another live player. No one online after 30 seconds? You're matched with a bot instead — the game never makes you wait."
+							body: 'Queues you against another live player — real opponents only, no bots. No one around? A "Try Scrimmage instead" option appears while the search keeps running in the background.'
 						},
 						{
 							label: 'Group play',
-							title: 'Lobbies',
+							title: 'Multiplayer',
 							body: 'Three or more players in one contest. Join a fixed-size lobby that starts once it fills, or an open one that resolves on a timer regardless of headcount.'
 						},
 						{
@@ -62,8 +62,8 @@
 						},
 						{
 							label: 'Zero risk',
-							title: 'Practice Mode',
-							body: "Same UI, same scoring, a bot opponent — but XP earned doesn't count toward your real total. Built for learning the scoring system first."
+							title: 'Scrimmage',
+							body: "Same UI, same scoring, a bot opponent — draft against bots and earn XP, without touching your real rank. Built for learning the scoring system first."
 						}
 					]
 				},
@@ -97,7 +97,7 @@
 				{
 					num: 10,
 					title: "Read for a boost, on the days you'd rather not draft",
-					body: 'The Research Hub is sector-tagged news pulled live. Read one article a day for XP and a 24-hour boost — same mechanic as the Gauntlet, different input.'
+					body: 'The Knowledge Base is sector-tagged news pulled live. Read one article a day for XP and a 24-hour boost — same mechanic as the Gauntlet, different input.'
 				}
 			]
 		}
@@ -113,8 +113,8 @@
 			a: 'Not currently — CoinDraft ships with a single light theme.'
 		},
 		{
-			q: 'Does Practice Mode XP count toward my rank?',
-			a: 'No. It’s clearly labeled throughout — draft header, contest list, and result page — specifically so it never gets confused with a real result.'
+			q: 'Does Scrimmage XP count toward my rank?',
+			a: 'No — it earns its own separate Scrimmage XP, never your real rank. Clearly labeled throughout — draft header, contest list, and result page — specifically so it never gets confused with a real result.'
 		},
 		{
 			q: 'How many badges are there right now?',

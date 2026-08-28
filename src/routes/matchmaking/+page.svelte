@@ -5,6 +5,8 @@
 	import { toast } from '$lib/toast';
 	import { resolve } from '$app/paths';
 
+	const NO_OPPONENT_SUGGEST_MS = 20_000;
+
 	let status = $state<'idle' | 'searching' | 'matched' | 'error'>('idle');
 	let errorMessage = $state('');
 	let contestId = $state('');
@@ -12,6 +14,8 @@
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let searchStartTime = $state(0);
 	let elapsed = $state(0);
+	let noOpponentYet = $state(false);
+	let startingScrimmage = $state(false);
 
 	const elapsedStr = $derived.by(() => {
 		const s = Math.floor(elapsed / 1000);
@@ -31,10 +35,12 @@
 		status = 'searching';
 		searchStartTime = Date.now();
 		elapsed = 0;
+		noOpponentYet = false;
 
 		// Poll elapsed time
 		const elapsedTimer = setInterval(() => {
 			elapsed = Date.now() - searchStartTime;
+			if (elapsed > NO_OPPONENT_SUGGEST_MS) noOpponentYet = true;
 		}, 1000);
 
 		// Join queue
@@ -66,44 +72,8 @@
 			return;
 		}
 
-		// Poll for match every 3s, with bot fallback after 30s
+		// Poll for a real opponent every 3s — no bot fallback, ever (Single Match is real-opponents-only)
 		pollTimer = setInterval(async () => {
-			const elapsedMs = Date.now() - searchStartTime;
-
-			// Bot fallback after 30 seconds
-			if (elapsedMs > 30_000) {
-				clearInterval(elapsedTimer);
-				if (pollTimer) clearInterval(pollTimer);
-				pollTimer = null;
-
-				// Create a contest with bot opponent
-				const botRes = await fetch('/api/contests', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ type: 'daily' })
-				});
-				if (botRes.status === 401) {
-					window.location.href = '/?auth=required';
-					return;
-				}
-				if (!botRes.ok) {
-					status = 'error';
-					errorMessage = 'Could not create a bot match. Please try again.';
-					return;
-				}
-				const botData = await botRes.json();
-				if (botData.id) {
-					contestId = botData.id;
-					status = 'matched';
-					toast('No opponents online. Matched with bot.', 'success');
-					setTimeout(() => goto(resolve(`/draft?contestId=${contestId}`)), 1500);
-				} else {
-					status = 'error';
-					errorMessage = 'Could not create a bot match. Please try again.';
-				}
-				return;
-			}
-
 			const pollRes = await fetch('/api/matchmaking/status');
 			if (pollRes.status === 401) {
 				clearInterval(elapsedTimer);
@@ -134,6 +104,33 @@
 		}
 		await fetch('/api/matchmaking/leave', { method: 'POST' });
 		goto(resolve('/dashboard'));
+	}
+
+	async function startScrimmage() {
+		startingScrimmage = true;
+		if (pollTimer) {
+			clearInterval(pollTimer);
+			pollTimer = null;
+		}
+		await fetch('/api/matchmaking/leave', { method: 'POST' });
+		try {
+			const res = await fetch('/api/contests', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ type: 'daily', mode: 'paper' })
+			});
+			if (res.status === 401) {
+				window.location.href = '/?auth=required';
+				return;
+			}
+			if (!res.ok) throw new Error('Could not start Scrimmage. Please try again.');
+			const contest = await res.json();
+			window.location.href = `/draft?contestId=${contest.id}&type=${contest.type}&mode=paper`;
+		} catch (error) {
+			startingScrimmage = false;
+			status = 'error';
+			errorMessage = (error as Error)?.message ?? 'Could not start Scrimmage. Please try again.';
+		}
 	}
 </script>
 
@@ -170,8 +167,8 @@
 					Finding your rival
 				</div>
 				<p class="mt-4 max-w-[40ch] text-[15px] opacity-80">
-					Scanning live contests for a player at your skill level. After 30 seconds you'll be
-					matched with a bot opponent instead.
+					Scanning for a real, currently-available opponent. No bots here — if no one's around,
+					you'll get the option to Scrimmage instead while we keep looking.
 				</p>
 			</div>
 			<div class="relative flex items-end justify-between gap-6">
@@ -186,6 +183,21 @@
 				</button>
 			</div>
 		</div>
+		{#if noOpponentYet}
+			<div class="mt-4.5 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-border bg-surface p-5">
+				<div>
+					<div class="text-sm font-extrabold text-text">No one's online right now</div>
+					<p class="mt-1 text-[13px] text-text-muted">We'll keep searching in the background — or jump into Scrimmage while you wait.</p>
+				</div>
+				<button
+					onclick={startScrimmage}
+					disabled={startingScrimmage}
+					class="cursor-pointer rounded-full bg-primary px-6 py-3 text-sm font-extrabold text-text disabled:opacity-60"
+				>
+					{startingScrimmage ? 'Starting…' : 'Try Scrimmage instead'}
+				</button>
+			</div>
+		{/if}
 	{:else if status === 'matched'}
 		<div
 			class="hero-coral dot-grid flex min-h-[300px] flex-col justify-between rounded-[24px] p-11"

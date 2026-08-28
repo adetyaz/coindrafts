@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { BadgeDef } from '$lib/badges';
 
-	type Me = { id: string; username: string; xpTotal: number; streak: number };
+	type Me = { id: string; username: string; xpTotal: number; paperXpTotal: number; streak: number };
 	type Contest = Record<string, unknown>;
 	type LeaderboardRow = { rank: number; id: string; isMe: boolean };
 	type League = { id: string; name: string };
@@ -43,11 +43,14 @@
 		}
 	});
 
+	// Win rate is a competitive-skill number, so Scrimmage (bot-only, no real
+	// stakes) is excluded here — same fix as the dashboard's win rate (H-03).
+	const realResolvedContests = $derived(resolvedContests.filter((c) => !c.isPaper));
 	const winRate = $derived.by(() => {
 		const myId = me?.id;
-		if (resolvedContests.length === 0 || !myId) return null;
-		const w = resolvedContests.filter((c) => c.winnerId === myId).length;
-		return Math.round((w / resolvedContests.length) * 100);
+		if (realResolvedContests.length === 0 || !myId) return null;
+		const w = realResolvedContests.filter((c) => c.winnerId === myId).length;
+		return Math.round((w / realResolvedContests.length) * 100);
 	});
 </script>
 
@@ -80,7 +83,7 @@
 			</div>
 		</div>
 
-		<div class="mb-4.5 grid grid-cols-4 gap-0 overflow-hidden rounded-[20px] border border-border max-sm:grid-cols-2">
+		<div class="mb-4.5 grid grid-cols-5 gap-0 overflow-hidden rounded-[20px] border border-border max-sm:grid-cols-2">
 			<div class="border-r border-border bg-surface px-6 py-6.5 last:border-r-0">
 				<div class="font-mono text-[26px] font-bold tracking-[-0.03em]">{contests.length}</div>
 				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Contests</div>
@@ -95,9 +98,13 @@
 				<div class="font-mono text-[26px] font-bold tracking-[-0.03em]">{me.xpTotal.toLocaleString()}</div>
 				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Total XP</div>
 			</div>
-			<div class="bg-surface px-6 py-6.5">
-				<div class="font-mono text-[26px] font-bold tracking-[-0.03em] text-primary-ink">{me.streak}</div>
+			<div class="border-r border-border bg-surface px-6 py-6.5 last:border-r-0">
+				<div class="font-mono text-[26px] font-bold tracking-[-0.03em]">{me.streak}</div>
 				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Day streak</div>
+			</div>
+			<div class="bg-surface px-6 py-6.5" title="Earned from Scrimmage — never counts toward your real rank">
+				<div class="font-mono text-[26px] font-bold tracking-[-0.03em] text-positive-ink">{(me.paperXpTotal ?? 0).toLocaleString()}</div>
+				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Scrimmage XP</div>
 			</div>
 		</div>
 

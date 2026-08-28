@@ -22,7 +22,8 @@
 			items: [
 				{ href: '/draft', label: 'draft' },
 				{ href: '/matchmaking', label: 'matchmaking' },
-				{ href: '/lobby', label: 'lobbies' },
+				{ href: '/lobby', label: 'multiplayer' },
+				{ href: '/tournament', label: 'tournament' },
 				{ href: '/contest/result', label: 'result' }
 			]
 		},
@@ -37,7 +38,7 @@
 			label: 'learn',
 			items: [
 				{ href: '/mentor', label: 'mentor' },
-				{ href: '/research', label: 'research' }
+				{ href: '/research', label: 'knowledge base' }
 			]
 		},
 		{

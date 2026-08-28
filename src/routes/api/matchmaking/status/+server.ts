@@ -16,7 +16,8 @@ export async function GET({ cookies }) {
 		.where(
 			and(
 				or(eq(contests.status, 'live'), eq(contests.status, 'open')),
-				or(eq(contests.userAId, parsed.userId), eq(contests.userBId, parsed.userId))
+				or(eq(contests.userAId, parsed.userId), eq(contests.userBId, parsed.userId)),
+				eq(contests.isPaper, false)
 			)
 		)
 		.then((rows) => rows[0] ?? null);

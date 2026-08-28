@@ -3,6 +3,7 @@
 	import { SECTORS } from '$lib/constants';
 	import { sectorTheme } from '$lib/sectorTheme';
 	import Toast from '$lib/components/Toast.svelte';
+	import DraftAgent from '$lib/components/DraftAgent.svelte';
 	import { toast } from '$lib/toast';
 
 	type Token = {
@@ -41,6 +42,7 @@
 	let highlightId = $state('');
 	let contestType = $state<'daily' | 'weekly'>('daily');
 	let isPaper = $state(false);
+	let sectorRestriction = $state<string | null>(null);
 
 	// ── Lifecycle ──────────────────────────────────────────────────────
 	onMount(() => {
@@ -64,8 +66,17 @@
 		loading = true;
 		loadError = '';
 		try {
+			if (lobbyId) {
+				const lRes = await fetch(`/api/lobby/${lobbyId}`);
+				if (lRes.ok) {
+					const lobbyInfo = await lRes.json();
+					sectorRestriction = lobbyInfo.sectorRestriction ?? null;
+				}
+			}
+
+			const tokensUrl = sectorRestriction ? `/api/tokens?sector=${sectorRestriction}` : '/api/tokens';
 			const [tRes, sRes, meRes] = await Promise.all([
-				fetch('/api/tokens'),
+				fetch(tokensUrl),
 				fetch('/api/sectors'),
 				fetch('/api/me')
 			]);
@@ -172,6 +183,17 @@
 		activeSector = sectorId;
 	}
 
+	const emptySectors = $derived(SECTORS.filter((s) => !lineup.some((p) => p.sector === s.id)).map((s) => s.id));
+
+	// Applies AI Draft Agent picks the same way a manual click would — normal
+	// draft flow (addToken/removePick above) is completely unchanged, this is
+	// purely additive.
+	function applyAgentPicks(picks: { sector: string; symbol: string; name: string; currencyId: string }[]) {
+		for (const p of picks) {
+			lineup = [...lineup.filter((x) => x.sector !== p.sector), p];
+		}
+	}
+
 	function fmtChg(v: number | null): string {
 		if (v == null) return '—';
 		return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
@@ -257,15 +279,20 @@
 					: contestType === 'weekly'
 						? 'Weekly Contest · 7D · 2× XP'
 						: 'Head-to-head'}
-				{#if isPaper}&middot; Practice mode{/if}
+				{#if isPaper}&middot; Scrimmage{/if}
+				{#if sectorRestriction}&middot; {sectorRestriction.toUpperCase()}-only tournament{/if}
 			</div>
 			<h1 class="text-[40px] leading-none font-black tracking-[-0.04em] sm:text-[46px]">
 				Build your lineup
 			</h1>
 			<p class="mt-2 text-sm text-text-muted">
-				{lobbyId
-					? 'One token per sector · you place against the whole room, not one opponent'
-					: `One token per sector · scoring runs ${contestType === 'weekly' ? '7 days' : '24h'} from lock`}
+				{#if sectorRestriction}
+					Only {sectorRestriction.toUpperCase()} tokens are in the pool for this tournament
+				{:else if lobbyId}
+					One token per sector · you place against the whole room, not one opponent
+				{:else}
+					One token per sector · scoring runs {contestType === 'weekly' ? '7 days' : '24h'} from lock
+				{/if}
 			</p>
 		</div>
 		<div class="flex items-center gap-2.5 rounded-full border border-border bg-surface px-[18px] py-2.5">
@@ -519,7 +546,7 @@
 									<div class="h-9.5 w-9.5 shrink-0 rounded-[10px]" style="background:{t.color}29;border:1px solid {t.color}"></div>
 									<div>
 										<div class="text-sm font-extrabold">{t.label} &times;1.25</div>
-										<div class="text-xs text-text-muted">From Research Hub</div>
+										<div class="text-xs text-text-muted">From Knowledge Base</div>
 									</div>
 								</div>
 							{/each}
@@ -545,3 +572,4 @@
 </div>
 
 <Toast />
+<DraftAgent {emptySectors} {isPaper} onPicks={applyAgentPicks} />

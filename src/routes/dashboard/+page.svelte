@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Gauntlet from '$lib/components/Gauntlet.svelte';
+	import TermOfDay from '$lib/components/TermOfDay.svelte';
 	import StatBlock from '$lib/components/ui/StatBlock.svelte';
 	import Bar from '$lib/components/ui/Bar.svelte';
 	import type { BadgeDef } from '$lib/badges';
@@ -27,9 +28,13 @@
 
 	const user = $derived(page.data.user);
 	const resolvedContests = $derived(contests.filter((c) => c.status === 'resolved'));
-	const winCount = $derived(resolvedContests.filter((c) => c.winnerId === user?.id).length);
+	// Win rate is a competitive-skill number, so Scrimmage (bot-only, no real
+	// stakes) is excluded here — the "resolved" count above stays inclusive,
+	// since that's a general activity stat, not a skill claim (H-03).
+	const realResolvedContests = $derived(resolvedContests.filter((c) => !c.isPaper));
+	const winCount = $derived(realResolvedContests.filter((c) => c.winnerId === user?.id).length);
 	const winRate = $derived(
-		resolvedContests.length > 0 ? Math.round((winCount / resolvedContests.length) * 100) : 0
+		realResolvedContests.length > 0 ? Math.round((winCount / realResolvedContests.length) * 100) : 0
 	);
 
 	onMount(async () => {
@@ -184,6 +189,18 @@
 				</button>
 				<button
 					class="cursor-pointer rounded-full border-[1.5px] border-text bg-transparent px-[26px] py-3.5 text-sm font-bold text-text"
+					onclick={() => goto('/lobby')}
+				>
+					Join Multiplayer
+				</button>
+				<button
+					class="cursor-pointer rounded-full border-[1.5px] border-text bg-transparent px-[26px] py-3.5 text-sm font-bold text-text"
+					onclick={() => goto('/tournament')}
+				>
+					Tournaments
+				</button>
+				<button
+					class="cursor-pointer rounded-full border-[1.5px] border-text bg-transparent px-[26px] py-3.5 text-sm font-bold text-text"
 					onclick={() => goto('/draft')}
 				>
 					Open draft
@@ -193,14 +210,18 @@
 						class="cursor-pointer rounded-full border-[1.5px] border-text bg-transparent px-[26px] py-3.5 text-sm font-bold text-text"
 						onclick={() => createContest('daily', 'paper')}
 					>
-						Try practice mode
+						Try Scrimmage
 					</button>
 				{/if}
 			</div>
+			{#if contests.length === 0}
+				<p class="text-[13px] opacity-70">Scrimmage — draft against bots and earn XP, without touching your real rank.</p>
+			{/if}
 		</div>
 
 		<div class="flex min-w-0 flex-[1_1_280px] flex-col gap-3.5">
 			<Gauntlet />
+			<TermOfDay />
 			<div class="grid grid-cols-2 gap-4.5 rounded-[20px] border border-border bg-surface p-[22px]">
 				<StatBlock value={resolvedContests.length > 0 ? `${winRate}%` : '—'} label="Win rate" color="var(--color-mint-ink)" />
 				<StatBlock value={String(resolvedContests.length)} label="Resolved" />
@@ -382,7 +403,7 @@
 				<button
 					class="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold"
 					style="background:rgba(104,194,168,0.14);color:var(--color-mint-ink)"
-					onclick={() => createContest('daily', 'paper')}>+ Practice</button
+					onclick={() => createContest('daily', 'paper')}>+ Scrimmage</button
 				>
 			</div>
 		</div>
@@ -417,7 +438,7 @@
 							{#if c.isPaper}
 								<span
 									class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
-									style="background:rgba(104,194,168,0.14);color:var(--color-mint-ink)">Practice</span
+									style="background:rgba(104,194,168,0.14);color:var(--color-mint-ink)">Scrimmage</span
 								>
 							{/if}
 							<span class="font-mono text-[11px] text-text-muted">{String(c.id ?? '').slice(0, 8)}…</span>

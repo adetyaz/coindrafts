@@ -107,7 +107,7 @@
 <div class="mx-auto max-w-[1360px] px-7 pt-7 pb-18">
 	<div class="mb-4.5 flex flex-wrap items-end justify-between gap-6">
 		<div>
-			<h1 class="text-[40px] leading-none font-black tracking-[-0.04em]">Research Hub</h1>
+			<h1 class="text-[40px] leading-none font-black tracking-[-0.04em]">Knowledge Base</h1>
 			<p class="mt-2 text-sm text-text-muted">
 				Read a sector briefing, claim the boost, take it into the draft
 			</p>

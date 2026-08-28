@@ -22,7 +22,8 @@ export async function POST({ request, cookies }) {
 			and(
 				eq(contests.status, 'live'),
 				eq(contests.type, contestType),
-				or(eq(contests.userAId, parsed.userId), eq(contests.userBId, parsed.userId))
+				or(eq(contests.userAId, parsed.userId), eq(contests.userBId, parsed.userId)),
+				eq(contests.isPaper, false)
 			)
 		)
 		.then((rows) => rows[0] ?? null);

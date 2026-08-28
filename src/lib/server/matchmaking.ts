@@ -3,7 +3,7 @@ import { db } from '$lib/server/db';
 import { matchmakingQueue } from '$lib/server/schema';
 import { eq, and, lt, ne } from 'drizzle-orm';
 
-const QUEUE_TIMEOUT_MS = 30_000; // 30s timeout -> fallback to bot
+const QUEUE_TIMEOUT_MS = 30_000; // drop stale queue entries so an abandoned search never gets matched
 
 export async function findOpponent(userId: string, contestType: string) {
 	const cutoff = new Date(Date.now() - QUEUE_TIMEOUT_MS);

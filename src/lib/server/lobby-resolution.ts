@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { lobbies, lobbyParticipants, lineups, users } from '$lib/server/schema';
 import { scoreLineupPicks } from '$lib/server/contest-resolution';
+import { onLobbyResolved } from '$lib/server/tournament-resolution';
 
 /**
  * Resolves a live lobby: scores every participant's lineup, ranks them,
@@ -86,6 +87,14 @@ export async function resolveLobby(
 		.update(lobbies)
 		.set({ status: 'resolved', winnerId: scored[0].userId, endAt: new Date() })
 		.where(eq(lobbies.id, lobbyId));
+
+	if (lobby.tournamentId) {
+		await onLobbyResolved({
+			id: lobby.id,
+			tournamentId: lobby.tournamentId,
+			tournamentStage: lobby.tournamentStage
+		});
+	}
 
 	return { resolved: true };
 }

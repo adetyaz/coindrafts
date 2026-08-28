@@ -115,14 +115,14 @@
 						>Contest &middot; final</span
 					>
 					{#if result.isPaper}
-						<span class="rounded-full bg-black/10 px-2.5 py-1 text-[10px] font-bold uppercase">Practice</span>
+						<span class="rounded-full bg-black/10 px-2.5 py-1 text-[10px] font-bold uppercase">Scrimmage</span>
 					{/if}
 				</div>
 				<div class="text-[64px] leading-[0.9] font-black tracking-[-0.05em] max-sm:text-[40px]">
 					{result.status}
 				</div>
 				<div class="mt-3 w-fit rounded-full px-3.5 py-1.5 text-sm font-bold" style="background:rgba(26,36,33,0.1)">
-					+{result.xp} {result.isPaper ? 'practice XP (not counted)' : 'XP earned'}
+					+{result.xp} {result.isPaper ? 'Scrimmage XP (not counted)' : 'XP earned'}
 				</div>
 			</div>
 			<div class="flex items-center gap-6">

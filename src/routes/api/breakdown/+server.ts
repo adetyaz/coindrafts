@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getNews } from '$lib/server/sosovalue';
-import { getAiClient } from '$lib/server/aiCompute';
+import { createChatCompletion } from '$lib/server/aiCompute';
 
 interface Pick {
 	sector: string;
@@ -80,9 +80,7 @@ export async function POST({ request, cookies }) {
 	const prompt = buildPrompt(picks, status ?? 'MATCH ENDED', newsHeadlines);
 
 	try {
-		const { client, model } = getAiClient();
-		const chat = await client.chat.completions.create({
-			model,
+		const chat = await createChatCompletion({
 			messages: [{ role: 'user', content: prompt }],
 			// gpt-oss is a reasoning model — it spends part of this budget on an
 			// internal reasoning trace before emitting real content. 150 was tuned

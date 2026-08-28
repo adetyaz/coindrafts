@@ -47,7 +47,7 @@
 			features: [
 				{
 					name: 'Matchmaking',
-					desc: 'Queued 1v1 matching with a 30-second bot fallback. Queue is durable across server restarts.',
+					desc: 'Queued 1v1 matching, real opponents only — no bot fallback. Queue is durable across server restarts.',
 					status: 'done'
 				},
 				{
@@ -88,7 +88,7 @@
 			sub: 'Everything on top of the core loop.',
 			features: [
 				{
-					name: 'Research Hub',
+					name: 'Knowledge Base',
 					desc: 'Sector-tagged live news feed — reading one article a day earns XP and a boost, same mechanic as the Gauntlet.',
 					status: 'done'
 				},
@@ -98,13 +98,13 @@
 					status: 'done'
 				},
 				{
-					name: 'Paper Mode',
-					desc: 'No-stakes practice contests, separate XP tracking, clearly labeled throughout so it’s never confused with a real result.',
+					name: 'Scrimmage',
+					desc: 'No-stakes contests against bots, separate XP tracking, clearly labeled throughout so it’s never confused with a real result.',
 					status: 'done'
 				},
 				{
 					name: 'Shareable result cards',
-					desc: 'Auto-generated cards for X/Twitter after a real (non-practice) win or loss.',
+					desc: 'Auto-generated cards for X/Twitter after a real (non-Scrimmage) win or loss.',
 					status: 'done'
 				},
 				{

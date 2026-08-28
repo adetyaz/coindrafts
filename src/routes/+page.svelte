@@ -136,7 +136,7 @@
 	];
 
 	const FOOTER_COLS = [
-		{ title: 'Product', links: ['Draft', 'Contests', 'Leagues', 'Research Hub'] },
+		{ title: 'Product', links: ['Draft', 'Contests', 'Leagues', 'Knowledge Base'] },
 		{ title: 'Season', links: ['Leaderboard', 'Badges', 'Scoring rules', 'Past seasons'] },
 		{ title: 'Company', links: ['About', 'Careers', 'Press kit', 'Contact'] }
 	];
