@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import Gauntlet from '$lib/components/Gauntlet.svelte';
 	import TermOfDay from '$lib/components/TermOfDay.svelte';
+	import TokenIcon from '$lib/components/TokenIcon.svelte';
 	import StatBlock from '$lib/components/ui/StatBlock.svelte';
 	import Bar from '$lib/components/ui/Bar.svelte';
 	import type { BadgeDef } from '$lib/badges';
@@ -205,18 +206,18 @@
 				>
 					Open draft
 				</button>
-				{#if contests.length === 0}
-					<button
-						class="cursor-pointer rounded-full border-[1.5px] border-text bg-transparent px-[26px] py-3.5 text-sm font-bold text-text"
-						onclick={() => createContest('daily', 'paper')}
-					>
-						Try Scrimmage
-					</button>
-				{/if}
+				<!-- Always shown, and routes to the Scrimmage page rather than creating a
+				     contest inline — so the duration choice applies here too. -->
+				<button
+					class="cursor-pointer rounded-full border-[1.5px] border-text bg-transparent px-[26px] py-3.5 text-sm font-bold text-text"
+					onclick={() => goto('/scrimmage')}
+				>
+					{contests.length === 0 ? 'Try Scrimmage' : 'Scrimmage'}
+				</button>
 			</div>
-			{#if contests.length === 0}
-				<p class="text-[13px] opacity-70">Scrimmage — draft against bots and earn XP, without touching your real rank.</p>
-			{/if}
+			<p class="text-[13px] opacity-70">
+				Scrimmage — draft against bots and earn XP, without touching your real rank.
+			</p>
 		</div>
 
 		<div class="flex min-w-0 flex-[1_1_280px] flex-col gap-3.5">
@@ -325,12 +326,12 @@
 					{#each tokens.slice(0, 5) as token (token.currency_id)}
 						<div class="flex items-center justify-between py-2.5">
 							<div class="flex items-center gap-2.5">
-								<div
-									class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black text-text"
-									style="background: {avatarBg(token.symbol ?? '')}"
-								>
-									{(token.symbol ?? '?').charAt(0).toUpperCase()}
-								</div>
+								<TokenIcon
+									symbol={token.symbol}
+									size={28}
+									bg={avatarBg(token.symbol ?? '')}
+									fg="var(--color-ink)"
+								/>
 								<div>
 									<p class="text-[13px] font-bold">{(token.symbol ?? '').toUpperCase()}</p>
 									<p class="text-[11px] text-text-muted">{token.name}</p>

@@ -4,7 +4,7 @@ import { json } from '@sveltejs/kit';
 
 export async function GET({ url }) {
 	try {
-		const data = await getTokensWithPrices(30);
+		const data = await getTokensWithPrices();
 		const sector = url.searchParams.get('sector');
 		const filtered = sector
 			? data.filter((t) => t.symbol && classifySector([t.symbol]) === sector)

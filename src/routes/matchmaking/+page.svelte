@@ -5,9 +5,19 @@
 	import { toast } from '$lib/toast';
 	import { resolve } from '$app/paths';
 
+	import { DURATION_OPTIONS, DEFAULT_DURATION_MINUTES, durationLabel } from '$lib/constants';
+	import { STAKE_TIERS } from '$lib/stakes';
+
 	const NO_OPPONENT_SUGGEST_MS = 20_000;
 
+	// Terms are chosen before matching, and players are matched on them — so the
+	// page opens on a picker rather than searching immediately.
 	let status = $state<'idle' | 'searching' | 'matched' | 'error'>('idle');
+	let durationMinutes = $state(DEFAULT_DURATION_MINUTES);
+	// Stake tier. Matching on it IS the agreement to that stake, so there's
+	// nothing to negotiate later. 0 = play for nothing.
+	let stakeTier = $state(0);
+	let xpBalance = $state<number | null>(null);
 	let errorMessage = $state('');
 	let contestId = $state('');
 	let _opponentId = $state('');
@@ -23,8 +33,19 @@
 		return `${m}:${(s % 60).toString().padStart(2, '0')}`;
 	});
 
-	onMount(() => {
-		startSearch();
+	// No auto-search: the player picks terms first. Previously this page joined
+	// the queue the moment it loaded, which is incompatible with choosing a
+	// duration to be matched on.
+
+	onMount(async () => {
+		// Needed to grey out tiers the player can't cover — offering a stake they
+		// can't fund would fail only after they'd committed to it.
+		try {
+			const res = await fetch('/api/me');
+			if (res.ok) xpBalance = (await res.json())?.xpTotal ?? 0;
+		} catch {
+			/* balance is a nicety; the server enforces affordability anyway */
+		}
 	});
 
 	onDestroy(() => {
@@ -47,7 +68,7 @@
 		const res = await fetch('/api/matchmaking/join', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ type: 'daily' })
+			body: JSON.stringify({ type: 'daily', durationMinutes, stakeTier })
 		});
 
 		if (res.status === 401) {
@@ -117,7 +138,7 @@
 			const res = await fetch('/api/contests', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ type: 'daily', mode: 'paper' })
+				body: JSON.stringify({ type: 'daily', mode: 'paper', durationMinutes })
 			});
 			if (res.status === 401) {
 				window.location.href = '/?auth=required';
@@ -135,7 +156,92 @@
 </script>
 
 <div class="mx-auto max-w-[720px] px-7 py-14">
-	{#if status === 'searching'}
+	{#if status === 'idle'}
+		<div class="rounded-[24px] border border-border bg-surface p-11 max-sm:p-6">
+			<div class="font-mono text-[11px] font-bold tracking-[0.14em] text-primary-ink uppercase">
+				Single Match
+			</div>
+			<h1 class="mt-3 text-[38px] leading-none font-black tracking-[-0.04em] max-sm:text-[28px]">
+				How long should it run?
+			</h1>
+			<p class="mt-3 max-w-[46ch] text-[15px] text-text-muted">
+				You'll be matched with someone who picked the same length, so prices are read over the same
+				window. Shorter games fill more slowly — there are fewer people waiting on them.
+			</p>
+
+			<div class="mt-7 flex flex-wrap gap-2.5">
+				{#each DURATION_OPTIONS as opt (opt.minutes)}
+					<button
+						type="button"
+						onclick={() => (durationMinutes = opt.minutes)}
+						aria-pressed={durationMinutes === opt.minutes}
+						class="cursor-pointer rounded-full border-[1.5px] px-5 py-3 text-sm font-bold transition"
+						style={durationMinutes === opt.minutes
+							? 'background:var(--color-text);color:var(--color-primary);border-color:var(--color-text)'
+							: 'background:transparent;color:var(--color-text-muted);border-color:var(--color-border)'}
+					>
+						{opt.label}
+					</button>
+				{/each}
+			</div>
+
+			<div class="mt-7">
+				<div class="mb-3 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+					Play for something?
+				</div>
+				<div class="flex flex-wrap gap-2.5">
+					{#each STAKE_TIERS as tier (tier)}
+						{@const tooRich = tier > 0 && xpBalance != null && xpBalance < tier}
+						<button
+							type="button"
+							disabled={tooRich}
+							onclick={() => (stakeTier = tier)}
+							aria-pressed={stakeTier === tier}
+							title={tooRich ? `You have ${xpBalance} XP` : undefined}
+							class="cursor-pointer rounded-full border-[1.5px] px-5 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-35"
+							style={stakeTier === tier
+								? 'background:var(--color-text);color:var(--color-primary);border-color:var(--color-text)'
+								: 'background:transparent;color:var(--color-text-muted);border-color:var(--color-border)'}
+						>
+							{tier === 0 ? 'No stake' : `${tier} XP`}
+						</button>
+					{/each}
+				</div>
+				{#if stakeTier > 0}
+					<p class="mt-3 max-w-[46ch] text-[13px] text-text-muted">
+						You'll be matched with someone who chose the same stake. Before the game starts you can
+						raise — but it always settles at the <strong class="text-text">lower</strong> of the two,
+						so you can never be pushed above your own number.
+					</p>
+				{/if}
+				{#if xpBalance != null}
+					<p class="mt-2 font-mono text-[12px] text-text-muted">Balance: {xpBalance} XP</p>
+				{/if}
+			</div>
+
+			<button
+				onclick={startSearch}
+				class="mt-8 h-13 w-full cursor-pointer rounded-full bg-primary text-sm font-extrabold text-text transition hover:bg-primary-hover"
+			>
+				Find an opponent · {durationLabel(durationMinutes)}{stakeTier > 0 ? ` · ${stakeTier} XP` : ''}
+			</button>
+
+			<!-- Offered up front, not just after 20s of waiting. Someone who'd rather
+			     not wait for a real opponent shouldn't have to wait to find that out. -->
+			<div class="mt-5 border-t border-border pt-5 text-center">
+				<p class="text-[13px] text-text-muted">
+					Don't want to wait for a real opponent?
+				</p>
+				<button
+					onclick={startScrimmage}
+					disabled={startingScrimmage}
+					class="mt-2.5 cursor-pointer rounded-full border-[1.5px] border-border bg-transparent px-6 py-2.5 text-sm font-bold text-text transition hover:border-primary disabled:opacity-60"
+				>
+					{startingScrimmage ? 'Starting…' : 'Play a Scrimmage instead'}
+				</button>
+			</div>
+		</div>
+	{:else if status === 'searching'}
 		<div
 			class="hero-coral dot-grid relative flex min-h-[440px] flex-col justify-between overflow-hidden rounded-[24px] p-11"
 		>

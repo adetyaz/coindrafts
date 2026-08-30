@@ -6,9 +6,17 @@
 // of ever returning a token that doesn't actually exist in the live pool.
 import { classifySector } from '$lib/sectors';
 import { getTokensWithPrices, type TokenWithPrice } from '$lib/server/sosovalue';
-import { createChatCompletion } from '$lib/server/aiCompute';
+import {
+	createChatCompletion,
+	extractTrace,
+	activeBackend,
+	type ComputeTrace
+} from '$lib/server/aiCompute';
 
 export type AgentPick = { sector: string; symbol: string; name: string; currencyId: string };
+
+/** Picks plus the inference receipt that produced them (see ComputeTrace). */
+export type AgentResult = { picks: AgentPick[]; trace: ComputeTrace | null };
 
 function bestPerformer(tokens: TokenWithPrice[]): TokenWithPrice | undefined {
 	if (tokens.length === 0) return undefined;
@@ -16,8 +24,8 @@ function bestPerformer(tokens: TokenWithPrice[]): TokenWithPrice | undefined {
 }
 
 /** Picks one token per requested sector, reasoning over live data via 0G Compute/Groq. */
-export async function pickForSectors(sectors: string[]): Promise<AgentPick[]> {
-	const tokens = await getTokensWithPrices(30);
+export async function pickForSectors(sectors: string[]): Promise<AgentResult> {
+	const tokens = await getTokensWithPrices();
 	const priced = tokens.filter((t) => t.symbol && t.price != null);
 	const bySector = new Map<string, TokenWithPrice[]>();
 	for (const t of priced) {
@@ -33,7 +41,7 @@ export async function pickForSectors(sectors: string[]): Promise<AgentPick[]> {
 		candidatesBySector.set(sector, pool && pool.length > 0 ? pool : priced);
 	}
 
-	const chosen = await askAgent(candidatesBySector);
+	const { chosen, trace } = await askAgent(candidatesBySector);
 
 	// Resolved sequentially with a shared `used` set — multiple slots often
 	// share the same fallback candidate pool (when a sector's own bucket is
@@ -64,10 +72,12 @@ export async function pickForSectors(sectors: string[]): Promise<AgentPick[]> {
 			currencyId: token.currency_id
 		});
 	}
-	return picks;
+	return { picks, trace };
 }
 
-async function askAgent(candidatesBySector: Map<string, TokenWithPrice[]>): Promise<Map<string, string>> {
+async function askAgent(
+	candidatesBySector: Map<string, TokenWithPrice[]>
+): Promise<{ chosen: Map<string, string>; trace: ComputeTrace | null }> {
 	const lines: string[] = [];
 	for (const [sector, candidates] of candidatesBySector) {
 		lines.push(`${sector.toUpperCase()} slot — pick one:`);
@@ -92,17 +102,21 @@ async function askAgent(candidatesBySector: Map<string, TokenWithPrice[]>): Prom
 			max_tokens: 400,
 			temperature: 0.4
 		});
+		const backend = activeBackend();
+		const trace = extractTrace(res, backend.model, backend.via);
 		const raw = res.choices[0]?.message?.content ?? '';
 		const jsonMatch = raw.match(/\{[\s\S]*\}/);
-		if (!jsonMatch) return new Map();
+		if (!jsonMatch) return { chosen: new Map(), trace };
 		const parsed = JSON.parse(jsonMatch[0]);
 		const out = new Map<string, string>();
 		for (const [sector, symbol] of Object.entries(parsed)) {
 			if (typeof symbol === 'string') out.set(sector, symbol);
 		}
-		return out;
+		return { chosen: out, trace };
 	} catch (e) {
 		console.error('[draftAgent] LLM pick failed, falling back to best-performer per sector:', e);
-		return new Map();
+		// No trace on failure — the picks that follow are procedural, not AI, and
+		// must not be recorded as AI-assisted.
+		return { chosen: new Map(), trace: null };
 	}
 }

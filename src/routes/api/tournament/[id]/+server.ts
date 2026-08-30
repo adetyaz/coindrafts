@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { tournaments, lobbies, lobbyParticipants } from '$lib/server/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { parseSessionToken } from '$lib/server/auth';
+import { evaluateTournament } from '$lib/server/tournament-resolution';
 
 // GET /api/tournament/[id] — full detail + its bracket stages, for polling
 export async function GET({ params, cookies }) {
@@ -11,13 +12,29 @@ export async function GET({ params, cookies }) {
 	if (!parsed) return json({ error: 'Unauthorized' }, { status: 401 });
 
 	const tournamentId = params.id;
-	const tournament = await db
+	let tournament = await db
 		.select()
 		.from(tournaments)
 		.where(eq(tournaments.id, tournamentId))
 		.limit(1)
 		.then((rows) => rows[0] ?? null);
 	if (!tournament) return json({ error: 'Tournament not found' }, { status: 404 });
+
+	// Lazily act on the scheduled close. Nothing in the app can fire at an
+	// arbitrary future moment — the only cron is daily — so the deadline is
+	// evaluated whenever someone reads the tournament. Starts it if it's viable,
+	// cancels it permanently if it isn't.
+	if (tournament.status === 'open' && tournament.registrationClosesAt) {
+		const outcome = await evaluateTournament(tournament);
+		if (outcome.ok) {
+			tournament = await db
+				.select()
+				.from(tournaments)
+				.where(eq(tournaments.id, tournamentId))
+				.limit(1)
+				.then((rows) => rows[0] ?? tournament);
+		}
+	}
 
 	const groups = await db
 		.select({

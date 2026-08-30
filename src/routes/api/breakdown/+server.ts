@@ -1,6 +1,11 @@
 import { json } from '@sveltejs/kit';
 import { getNews } from '$lib/server/sosovalue';
-import { createChatCompletion } from '$lib/server/aiCompute';
+import {
+	createChatCompletion,
+	isInsufficientBalance,
+	AiConfigError,
+	activeBackend
+} from '$lib/server/aiCompute';
 
 interface Pick {
 	sector: string;
@@ -91,10 +96,23 @@ export async function POST({ request, cookies }) {
 		});
 
 		const text = chat.choices[0]?.message?.content?.trim() ?? '';
-		return json({ breakdown: text });
+		// Which backend answered, surfaced rather than assumed.
+		return json({ breakdown: text, via: activeBackend().via });
 	} catch (e: unknown) {
 		const message = e instanceof Error ? e.message : String(e);
 		console.error('[/api/breakdown]', message);
+		if (e instanceof AiConfigError) {
+			return json({ error: e.message, reason: 'ai_misconfigured' }, { status: 500 });
+		}
+		if (isInsufficientBalance(e)) {
+			return json(
+				{
+					error: 'The AI provider account is out of balance, so the breakdown is unavailable.',
+					reason: 'insufficient_balance'
+				},
+				{ status: 503 }
+			);
+		}
 		return json({ error: 'AI breakdown unavailable', detail: message }, { status: 502 });
 	}
 }

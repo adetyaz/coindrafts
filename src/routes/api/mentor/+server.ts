@@ -1,5 +1,5 @@
 import { parseSessionToken } from '$lib/server/auth';
-import { createChatCompletion } from '$lib/server/aiCompute';
+import { createChatCompletion, isInsufficientBalance, AiConfigError } from '$lib/server/aiCompute';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type SectorInfo = { id: string; name: string; change: number | null };
@@ -118,6 +118,23 @@ export async function POST({ request, cookies, fetch }) {
 	} catch (e: unknown) {
 		const message = e instanceof Error ? e.message : String(e);
 		console.error('[/api/mentor]', message);
+		// 0G bills per inference — an exhausted balance is an operational state
+		// with a specific fix, not a generic outage. Worth naming.
+		if (e instanceof AiConfigError) {
+			return new Response(JSON.stringify({ error: e.message, reason: 'ai_misconfigured' }), {
+				status: 500,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		}
+		if (isInsufficientBalance(e)) {
+			return new Response(
+				JSON.stringify({
+					error: 'The AI provider account is out of balance, so Mentor is unavailable right now.',
+					reason: 'insufficient_balance'
+				}),
+				{ status: 503, headers: { 'Content-Type': 'application/json' } }
+			);
+		}
 		return new Response(JSON.stringify({ error: 'Mentor unavailable', detail: message }), {
 			status: 502,
 			headers: { 'Content-Type': 'application/json' }

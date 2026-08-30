@@ -28,6 +28,7 @@
 		"@tailwindcss/vite": "^4.2.2",
 		"@types/bcryptjs": "^2.4.6",
 		"@types/node": "^22",
+		"@types/pg": "^8.23.1",
 		"drizzle-kit": "^0.31.10",
 		"drizzle-orm": "^0.45.2",
 		"eslint": "^10.2.0",
@@ -53,8 +54,10 @@
 		"bcryptjs": "^3.0.3",
 		"bs58": "^6.0.0",
 		"groq-sdk": "^1.1.2",
+		"pg": "^8.23.0",
 		"siwe": "^3.0.0",
 		"tweetnacl": "^1.0.3",
+		"uplot": "^1.6.32",
 		"viem": "^2.48.11",
 		"wagmi": "^3.6.11"
 	}

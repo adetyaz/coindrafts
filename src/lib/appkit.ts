@@ -8,7 +8,17 @@ import {
 	polygon,
 	optimism,
 	sepolia,
-	baseSepolia
+	baseSepolia,
+	// 0G — the chain the app's compute/storage story is built on, so it belongs
+	// in the wallet even before any on-chain feature ships. zeroGTestnet is
+	// 16602 (Galileo); zeroGMainnet is 16661.
+	zeroGMainnet,
+	zeroGTestnet,
+	// Solana. The adapter was already registered below, but no Solana network
+	// was ever listed here — AppKit needs the networks too, so Solana wallets
+	// could never actually be selected despite `users.chainType` supporting them.
+	solana,
+	solanaDevnet
 } from '@reown/appkit/networks';
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { PUBLIC_REOWN_PROJECT_ID } from '$env/static/public';
@@ -25,9 +35,25 @@ let instance: AppKitInstance | null = null;
 
 if (typeof window !== 'undefined') {
 	if (!globalThis.__coindraftAppKit) {
+		// EVM chains for the Wagmi adapter — 0G included.
+		const evmNetworks = [
+			mainnet,
+			zeroGMainnet,
+			zeroGTestnet,
+			arbitrum,
+			base,
+			polygon,
+			optimism,
+			sepolia,
+			baseSepolia
+		] as const;
+
+		// Solana chains for the Solana adapter.
+		const solanaNetworks = [solana, solanaDevnet] as const;
+
 		const wagmiAdapter = new WagmiAdapter({
 			projectId: PROJECT_ID,
-			networks: [mainnet, sepolia, arbitrum, base, baseSepolia, polygon, optimism]
+			networks: [...evmNetworks]
 		});
 
 		const solanaAdapter = new SolanaAdapter({
@@ -37,7 +63,15 @@ if (typeof window !== 'undefined') {
 		globalThis.__coindraftAppKit = createAppKit({
 			projectId: PROJECT_ID,
 			adapters: [wagmiAdapter, solanaAdapter],
-			networks: [mainnet, sepolia, arbitrum, base, baseSepolia, polygon, optimism],
+			// Both families are listed so users can pick either. Previously this
+			// was EVM-only, which left the Solana adapter unreachable.
+			networks: [...evmNetworks, ...solanaNetworks],
+			// No `defaultNetwork` on purpose. Setting one makes AppKit push the
+			// wallet toward that chain and prompt to switch — which is pure friction
+			// here, because **nothing in CoinDraft is on-chain**. Sign-in is a SIWE
+			// signature; the chain id is recorded but never acted on. Whatever
+			// network the wallet is already on is fine, and asking to change it
+			// makes the app look like it wants a transaction when it doesn't.
 			metadata: {
 				name: 'CoinDraft',
 				description: 'Fantasy crypto draft platform',

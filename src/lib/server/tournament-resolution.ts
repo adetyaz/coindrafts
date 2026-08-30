@@ -21,6 +21,18 @@ export async function joinTournament(tournamentId: string, userId: string) {
 	if (!tournament) return { error: 'not_found' as const };
 	if (tournament.status !== 'open') return { error: 'closed' as const };
 
+	// The deadline is enforced here too, not only on read. A tournament nobody
+	// has opened since its closing time is still `open` in the database, and
+	// without this check a late joiner could slip into a tournament that should
+	// already have started or died.
+	if (
+		tournament.registrationClosesAt &&
+		Date.now() >= new Date(tournament.registrationClosesAt).getTime()
+	) {
+		await evaluateTournament(tournament);
+		return { error: 'closed' as const };
+	}
+
 	// Already in a group for this tournament? Don't double-assign.
 	const existing = await db
 		.select({ lobbyId: lobbyParticipants.lobbyId })
@@ -78,17 +90,22 @@ export async function joinTournament(tournamentId: string, userId: string) {
 	return { lobbyId };
 }
 
-export async function closeRegistration(tournamentId: string, userId: string) {
-	const tournament = await db
-		.select()
-		.from(tournaments)
-		.where(eq(tournaments.id, tournamentId))
-		.limit(1)
-		.then((rows) => rows[0] ?? null);
-	if (!tournament) return { error: 'not_found' as const };
-	if (tournament.createdBy !== userId) return { error: 'forbidden' as const };
-	if (tournament.status !== 'open') return { error: 'already_closed' as const };
+/** Everyone currently signed up across all qualifier groups. */
+async function participantCount(tournamentId: string): Promise<number> {
+	const rows = await db
+		.select({ userId: lobbyParticipants.userId })
+		.from(lobbyParticipants)
+		.innerJoin(lobbies, eq(lobbies.id, lobbyParticipants.lobbyId))
+		.where(eq(lobbies.tournamentId, tournamentId));
+	return new Set(rows.map((r) => r.userId)).size;
+}
 
+/**
+ * Closes registration and STARTS the tournament. Assumes viability has already
+ * been checked — call `evaluateTournament` unless the creator is starting early
+ * on purpose.
+ */
+async function startTournament(tournamentId: string) {
 	const filling = await db
 		.select()
 		.from(lobbies)
@@ -108,14 +125,89 @@ export async function closeRegistration(tournamentId: string, userId: string) {
 		if (participants.length >= 2) {
 			await db.update(lobbies).set({ status: 'drafting' }).where(eq(lobbies.id, group.id));
 		} else {
-			// Never filled enough to be viable — drop it, no penalty to whoever joined.
+			// A group that never reached two can't be played — drop it. The player
+			// isn't penalised; they simply aren't in a group.
 			await db.delete(lobbyParticipants).where(eq(lobbyParticipants.lobbyId, group.id));
 			await db.delete(lobbies).where(eq(lobbies.id, group.id));
 		}
 	}
 
 	await db.update(tournaments).set({ status: 'active' }).where(eq(tournaments.id, tournamentId));
-	return { ok: true };
+	return { ok: true as const, outcome: 'started' as const };
+}
+
+/**
+ * Closes registration and CANCELS the tournament — it never ran and nobody won.
+ *
+ * Distinct from `resolved` on purpose: same timestamp as a start, opposite
+ * meaning. Once funding exists this is the branch that must refund every stake,
+ * where a start locks them.
+ */
+async function cancelTournament(tournamentId: string) {
+	const groups = await db
+		.select()
+		.from(lobbies)
+		.where(eq(lobbies.tournamentId, tournamentId));
+
+	for (const g of groups) {
+		await db.delete(lobbyParticipants).where(eq(lobbyParticipants.lobbyId, g.id));
+		await db.delete(lobbies).where(eq(lobbies.id, g.id));
+	}
+
+	await db.update(tournaments).set({ status: 'cancelled' }).where(eq(tournaments.id, tournamentId));
+	return { ok: true as const, outcome: 'cancelled' as const };
+}
+
+/**
+ * The scheduled close. One evaluation, two possible outcomes — never both.
+ *
+ * Called lazily whenever a tournament is read (list or detail), because nothing
+ * in the app can act at an arbitrary future moment: the only scheduled job is a
+ * once-daily cron, which cannot start a tournament closing at 14:30. This is the
+ * same pattern contest resolution already uses, so it needs no new
+ * infrastructure. The cron remains a backstop for tournaments nobody opens.
+ *
+ * No-ops unless the tournament is open and its closing time has passed.
+ */
+export async function evaluateTournament(tournament: typeof tournaments.$inferSelect) {
+	if (tournament.status !== 'open') return { ok: false as const, outcome: 'not_open' as const };
+	if (!tournament.registrationClosesAt) {
+		// No deadline set — only a manual close can start it.
+		return { ok: false as const, outcome: 'no_deadline' as const };
+	}
+	if (Date.now() < new Date(tournament.registrationClosesAt).getTime()) {
+		return { ok: false as const, outcome: 'still_open' as const };
+	}
+
+	const joined = await participantCount(tournament.id);
+	const minimum = tournament.minPlayers ?? 2;
+
+	return joined >= minimum ? startTournament(tournament.id) : cancelTournament(tournament.id);
+}
+
+/**
+ * Creator-only manual close — "everyone's here, start now". Overrides the
+ * scheduled time rather than replacing it, and still refuses to start a
+ * tournament that isn't viable.
+ */
+export async function closeRegistration(tournamentId: string, userId: string) {
+	const tournament = await db
+		.select()
+		.from(tournaments)
+		.where(eq(tournaments.id, tournamentId))
+		.limit(1)
+		.then((rows) => rows[0] ?? null);
+	if (!tournament) return { error: 'not_found' as const };
+	if (tournament.createdBy !== userId) return { error: 'forbidden' as const };
+	if (tournament.status !== 'open') return { error: 'already_closed' as const };
+
+	const joined = await participantCount(tournamentId);
+	const minimum = tournament.minPlayers ?? 2;
+	if (joined < minimum) {
+		return { error: 'not_enough_players' as const, joined, minimum };
+	}
+
+	return startTournament(tournamentId);
 }
 
 /**

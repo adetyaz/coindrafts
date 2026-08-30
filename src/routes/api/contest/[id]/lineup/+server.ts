@@ -5,6 +5,7 @@ import { contests, lineups, lineupPicks } from '$lib/server/schema';
 import { parseSessionToken } from '$lib/server/auth';
 import { getSnapshot, extractPrice } from '$lib/server/sosovalue';
 import { pickScrimmageBot, draftBotLineup } from '$lib/server/botDraft';
+import { DEFAULT_DURATION_MINUTES } from '$lib/constants';
 
 export async function POST({ params, request, cookies }) {
 	const token = cookies.get('session');
@@ -80,9 +81,12 @@ export async function POST({ params, request, cookies }) {
 	// Only set contest live when userA (the creator) submits
 	// userB submits into an already-live contest
 	if (existingContest.userAId === parsed.userId) {
-		const windowDays = existingContest.type === 'weekly' ? 7 : 1;
+		// Duration comes from the contest itself, chosen before matching. This
+		// used to be `type === 'weekly' ? 7 : 1` days, which made any game
+		// shorter than a day impossible to express.
+		const durationMinutes = existingContest.durationMinutes ?? DEFAULT_DURATION_MINUTES;
 		const startAt = new Date();
-		const endAt = new Date(Date.now() + windowDays * 24 * 60 * 60 * 1000);
+		const endAt = new Date(startAt.getTime() + durationMinutes * 60 * 1000);
 
 		// Scrimmage contests are created directly (never via matchmaking_queue),
 		// so bots-service never sees them. Assign a real bot opponent right

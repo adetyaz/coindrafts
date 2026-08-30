@@ -4,6 +4,8 @@
 	import { sectorTheme } from '$lib/sectorTheme';
 	import Toast from '$lib/components/Toast.svelte';
 	import DraftAgent from '$lib/components/DraftAgent.svelte';
+	import TokenIcon from '$lib/components/TokenIcon.svelte';
+	import TokenHover from '$lib/components/TokenHover.svelte';
 	import { toast } from '$lib/toast';
 
 	type Token = {
@@ -28,6 +30,28 @@
 	// ── State ──────────────────────────────────────────────────────────
 	let contestId = $state('');
 	let lobbyId = $state('');
+
+	// Token hover overlay (G-07). Anchored to the hovered card's rect so the
+	// overlay can place itself beside it and flip near the viewport edge.
+	let hoverToken = $state<{ currencyId: string; symbol: string } | null>(null);
+	let hoverRect = $state<DOMRect | null>(null);
+
+	function openHover(e: MouseEvent, currencyId: string, symbol: string) {
+		hoverRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		hoverToken = { currencyId, symbol };
+	}
+	function closeHover() {
+		hoverToken = null;
+		hoverRect = null;
+	}
+
+	// The anchor rect is captured once, so any scroll invalidates it. Dismissing
+	// is better than letting the overlay drift away from its card.
+	$effect(() => {
+		if (!hoverToken) return;
+		window.addEventListener('scroll', closeHover, { passive: true, once: true });
+		return () => window.removeEventListener('scroll', closeHover);
+	});
 	let tokens = $state<Token[]>([]);
 	let sectorChanges = $state<Map<string, number | null>>(new Map());
 	let lineup = $state<Pick[]>([]);
@@ -255,7 +279,9 @@
 				const errData = await r2.json().catch(() => ({}));
 				throw new Error((errData as { error?: string }).error ?? 'Failed to submit lineup');
 			}
-			window.location.href = `/contest/result?contestId=${contestId}`;
+			// Goes to the game, not the result. Landing on the result page straight
+			// from a lock is what used to settle contests seconds after they began.
+			window.location.href = `/game/${contestId}`;
 		} catch (e) {
 			toast(e instanceof Error ? e.message : 'Submit failed', 'error');
 		} finally {
@@ -351,10 +377,10 @@
 						{#if pick}
 							{@const tkn = tokenMap.get(pick.currencyId)}
 							<div
-								class="grid h-[54px] w-[54px] place-items-center rounded-full text-[22px] font-black text-text"
+								class="grid h-[54px] w-[54px] place-items-center rounded-full"
 								style="background:{theme.color};box-shadow:0 0 26px {theme.color}66"
 							>
-								{pick.symbol.charAt(0).toUpperCase()}
+								<TokenIcon symbol={pick.symbol} size={38} bg="transparent" fg="var(--color-ink)" />
 							</div>
 							<div class="text-[17px] font-black tracking-[-0.02em]">{pick.symbol.toUpperCase()}</div>
 							<div class="font-mono text-[11px] text-text-muted">
@@ -456,6 +482,9 @@
 						{@const isHighlighted = token.currency_id === highlightId}
 						{@const activeTheme = sectorTheme(activeSector)}
 						<div
+							role="group"
+							onmouseenter={(e) => openHover(e, token.currency_id, token.symbol ?? '')}
+							onmouseleave={closeHover}
 							class="rounded-[20px] p-4.5 transition-transform duration-200 hover:-translate-y-1.5"
 							style="background:{inLineup
 								? 'var(--color-primary-muted)'
@@ -465,10 +494,10 @@
 						>
 							<div class="mb-4 flex items-start justify-between gap-2.5">
 								<div
-									class="grid h-[46px] w-[46px] place-items-center rounded-full text-[19px] font-black text-text"
+									class="grid h-[46px] w-[46px] place-items-center rounded-full"
 									style="background:{activeTheme.color};box-shadow:0 0 24px {activeTheme.color}55"
 								>
-									{(token.symbol ?? '?').charAt(0).toUpperCase()}
+									<TokenIcon symbol={token.symbol} size={32} bg="transparent" fg="var(--color-ink)" />
 								</div>
 								{#if token.rank}
 									<span class="rounded-full bg-surface-alt px-2 py-1 text-[10px] font-bold text-text-muted"
@@ -570,6 +599,10 @@
 		</div>
 	{/if}
 </div>
+
+{#if hoverToken}
+	<TokenHover currencyId={hoverToken.currencyId} symbol={hoverToken.symbol} anchor={hoverRect} />
+{/if}
 
 <Toast />
 <DraftAgent {emptySectors} {isPaper} onPicks={applyAgentPicks} />

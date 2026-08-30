@@ -50,24 +50,56 @@ export async function POST({ request, cookies }) {
 	}
 
 	// ── Upsert user by wallet address ──────────────────────────────────────
-	let user = await db
-		.select()
-		.from(users)
-		.where(eq(users.walletAddress, verifiedAddress))
-		.limit(1)
-		.then((r) => r[0] ?? null);
+	// The signature is already verified by this point, so any failure here is
+	// infrastructure, not the user. It used to throw and surface as a bare 500
+	// with no explanation — the wallet had signed, and the app just died. A
+	// database problem is not the signer's fault and shouldn't look like a
+	// rejected login.
+	let user;
+	try {
+		user = await db
+			.select()
+			.from(users)
+			.where(eq(users.walletAddress, verifiedAddress))
+			.limit(1)
+			.then((r) => r[0] ?? null);
+
+		if (!user) {
+			// First time — create user record
+			const [newUser] = await db
+				.insert(users)
+				.values({
+					walletAddress: verifiedAddress,
+					username: `player_${verifiedAddress.slice(2, 8)}`, // default username
+					chainType: type
+				})
+				.returning();
+			user = newUser;
+		}
+	} catch (e) {
+		const raw = e instanceof Error ? e.message : String(e);
+		// Neon returns 402 when a project exceeds its compute quota. That's an
+		// account/billing state, not an outage, and it needs saying plainly —
+		// otherwise it's indistinguishable from "the app is broken".
+		const quotaExhausted = raw.includes('402') || raw.toLowerCase().includes('quota');
+		console.error('[auth/verify] database unavailable:', raw);
+		return json(
+			{
+				error: quotaExhausted
+					? 'The database has hit its usage limit, so sign-in is unavailable right now. Your wallet signature was fine — nothing was charged.'
+					: "Couldn't reach the database. Your wallet signature was fine — please try again in a moment.",
+				retryable: true,
+				reason: quotaExhausted ? 'db_quota' : 'db_unavailable'
+			},
+			{ status: 503 }
+		);
+	}
 
 	if (!user) {
-		// First time — create user record
-		const [newUser] = await db
-			.insert(users)
-			.values({
-				walletAddress: verifiedAddress,
-				username: `player_${verifiedAddress.slice(2, 8)}`, // default username
-				chainType: type
-			})
-			.returning();
-		user = newUser;
+		return json(
+			{ error: 'Could not create your account. Please try again.', retryable: true },
+			{ status: 503 }
+		);
 	}
 
 	// ── Create session cookie ───────────────────────────────────────────────

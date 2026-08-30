@@ -5,21 +5,36 @@
 	import Toast from '$lib/components/Toast.svelte';
 	import { BADGE_MAP } from '$lib/badges';
 
+	// Starts empty on purpose. This page previously initialised with a realistic
+	// fabricated result ("YOU WON · 1482 / 1215" over five invented picks), which
+	// rendered as though real whenever there was no contestId or the fetch failed
+	// — including straight from the nav. A result screen must never invent a
+	// result; with nothing loaded it now says so.
 	let result = $state({
-		status: 'YOU WON',
-		xp: 250,
-		yourScore: 1482,
-		opponentScore: 1215,
+		status: '',
+		xp: 0,
+		yourScore: 0,
+		opponentScore: 0,
 		isPaper: false
 	});
 
-	let breakdown = $state([
-		{ sector: 'L1', pick: 'SOL', pct: 8.4, opponent: 'ETH (+1.2%)', points: 420 },
-		{ sector: 'Meme', pick: 'PEPE', pct: 15.2, opponent: 'DOGE (-2.1%)', points: 612 },
-		{ sector: 'DeFi', pick: 'AAVE', pct: 3.1, opponent: 'UNI (+4.5%)', points: 180 },
-		{ sector: 'L2', pick: 'ARB', pct: -1.4, opponent: 'OP (-0.8%)', points: 85 },
-		{ sector: 'Wild', pick: 'RNDR', pct: 5.7, opponent: 'TAO (+2.2%)', points: 185 }
-	]);
+	let breakdown = $state<
+		{
+			sector: string;
+			pick: string;
+			pct: number;
+			opponent: string | null;
+			opponentPick: string | null;
+			opponentPct: number | null;
+			points: number;
+		}[]
+	>([]);
+	let opponentName = $state<string | null>(null);
+	let record = $state<{ wins: number; losses: number } | null>(null);
+	let canRematch = $state(false);
+	let stakeInfo = $state<{ amount: number | null; net: number; status: string } | null>(null);
+	let rematching = $state(false);
+	let hasResult = $state(false);
 	let loading = $state(true);
 	let error = $state('');
 	let aiBreakdown = $state('');
@@ -38,6 +53,15 @@
 
 		try {
 			const res = await fetch(`/api/contest/${contestId}/result`);
+			// Still running — send them to watch it rather than showing an error for
+			// a contest that simply hasn't finished yet.
+			if (res.status === 409) {
+				const payload = await res.json().catch(() => ({}));
+				if (payload?.stillRunning) {
+					window.location.href = payload.gameUrl ?? `/game/${contestId}`;
+					return;
+				}
+			}
 			if (!res.ok) throw new Error('Failed to load contest result');
 			const data = await res.json();
 			result = {
@@ -50,6 +74,11 @@
 			if (Array.isArray(data.breakdown) && data.breakdown.length > 0) {
 				breakdown = data.breakdown;
 			}
+			opponentName = data.opponentName ?? null;
+			record = data.record ?? null;
+			canRematch = Boolean(data.canRematch);
+			stakeInfo = data.stake ?? null;
+			hasResult = true;
 			// Fetch AI breakdown after picks are loaded
 			fetchAiBreakdown(data.breakdown ?? breakdown, data.status ?? result.status);
 
@@ -92,6 +121,24 @@
 		}
 	}
 
+	async function rematch() {
+		rematching = true;
+		try {
+			const res = await fetch(`/api/contest/${contestId}/rematch`, { method: 'POST' });
+			const data = await res.json();
+			if (!res.ok) {
+				// The cap is a deliberate stop, not an error — say so plainly.
+				toast(data?.error ?? 'Could not start a rematch', 'error');
+				rematching = false;
+				return;
+			}
+			window.location.href = `/draft?contestId=${data.contestId}`;
+		} catch {
+			toast('Could not start a rematch', 'error');
+			rematching = false;
+		}
+	}
+
 	const won = $derived(result.status === 'YOU WON');
 </script>
 
@@ -102,6 +149,30 @@
 		<p class="mb-4 text-sm text-negative-ink">{error}</p>
 	{/if}
 
+	{#if !loading && !hasResult}
+		<div class="rounded-[24px] border border-border bg-surface p-11 text-center max-sm:p-6">
+			<div class="text-[28px] font-black tracking-[-0.03em]">
+				{error ? 'Result unavailable' : 'No contest selected'}
+			</div>
+			<p class="mx-auto mt-3 max-w-[46ch] text-[15px] text-text-muted">
+				{error
+					? "We couldn't load that contest. It may still be running, or the link may be wrong."
+					: 'Open a result from your contest list — results are tied to a specific contest.'}
+			</p>
+			<div class="mt-7 flex flex-wrap justify-center gap-3">
+				<a
+					href="/dashboard"
+					class="inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-extrabold text-text no-underline"
+					>Go to dashboard</a
+				>
+				<a
+					href="/matchmaking"
+					class="inline-flex h-12 items-center rounded-full border border-border px-8 text-sm font-bold text-text-muted no-underline"
+					>Find a match</a
+				>
+			</div>
+		</div>
+	{:else if hasResult}
 	<div
 		class="rounded-[24px] p-11 max-sm:p-6"
 		style={won
@@ -121,8 +192,33 @@
 				<div class="text-[64px] leading-[0.9] font-black tracking-[-0.05em] max-sm:text-[40px]">
 					{result.status}
 				</div>
-				<div class="mt-3 w-fit rounded-full px-3.5 py-1.5 text-sm font-bold" style="background:rgba(26,36,33,0.1)">
-					+{result.xp} {result.isPaper ? 'Scrimmage XP (not counted)' : 'XP earned'}
+				<div class="mt-3 flex flex-wrap items-center gap-2.5">
+					<div class="w-fit rounded-full px-3.5 py-1.5 text-sm font-bold" style="background:rgba(26,36,33,0.1)">
+						+{result.xp} {result.isPaper ? 'Scrimmage XP (not counted)' : 'XP earned'}
+					</div>
+					{#if stakeInfo && stakeInfo.status === 'settled'}
+						<!-- Stated outright rather than left to be inferred from a balance
+						     change — the wager is the reason they're here. -->
+						<div
+							class="w-fit rounded-full px-3.5 py-1.5 font-mono text-sm font-bold"
+							style="background:{stakeInfo.net >= 0
+								? 'rgba(104,194,168,0.22)'
+								: 'rgba(232,112,112,0.18)'}"
+						>
+							{stakeInfo.net >= 0 ? '+' : ''}{stakeInfo.net} XP wager
+						</div>
+					{:else if stakeInfo && stakeInfo.status === 'refunded'}
+						<div class="w-fit rounded-full px-3.5 py-1.5 text-sm font-bold" style="background:rgba(26,36,33,0.08)">
+							Wager refunded
+						</div>
+					{/if}
+					{#if record}
+						<!-- The record is what makes an opponent a nemesis rather than
+						     just the last person you played. -->
+						<div class="w-fit rounded-full px-3.5 py-1.5 font-mono text-sm font-bold" style="background:rgba(26,36,33,0.08)">
+							{record.wins}–{record.losses} vs {opponentName ?? 'them'}
+						</div>
+					{/if}
 				</div>
 			</div>
 			<div class="flex items-center gap-6">
@@ -134,7 +230,9 @@
 				</div>
 				<div class="text-xl font-extrabold opacity-40">/</div>
 				<div>
-					<div class="mb-1.5 text-[11px] font-extrabold tracking-[0.1em] opacity-70 uppercase">Opponent</div>
+					<div class="mb-1.5 truncate text-[11px] font-extrabold tracking-[0.1em] opacity-70 uppercase">
+						{opponentName ?? 'Opponent'}
+					</div>
 					<div
 						class="font-mono text-[44px] leading-none font-bold tracking-[-0.03em] opacity-65 max-sm:text-[32px]"
 					>
@@ -171,7 +269,20 @@
 							style="color:{row.pct >= 0 ? 'var(--color-mint-ink)' : 'var(--color-red-ink)'}"
 							>{row.pct >= 0 ? '+' : ''}{row.pct}%</span
 						>
-						<span class="truncate text-sm text-text-muted">{row.opponent}</span>
+						{#if row.opponentPick}
+							<span class="truncate text-sm">
+								<span class="font-bold text-text">{row.opponentPick}</span>
+								{#if row.opponentPct != null}
+									<span
+										class="font-mono text-[12px]"
+										style="color:{row.opponentPct >= 0 ? 'var(--color-mint-ink)' : 'var(--color-red-ink)'}"
+										>{row.opponentPct >= 0 ? '+' : ''}{row.opponentPct}%</span
+									>
+								{/if}
+							</span>
+						{:else}
+							<span class="text-sm text-text-muted">—</span>
+						{/if}
 						<span class="text-right text-sm font-bold">+{row.points}</span>
 					</div>
 				{/each}
@@ -228,13 +339,24 @@
 					>Share result</a
 				>
 			{/if}
+			{#if canRematch}
+				<!-- The rivalry loop. Same opponent, same terms — one click. -->
+				<button
+					onclick={rematch}
+					disabled={rematching}
+					class="w-full cursor-pointer rounded-full bg-text py-4 text-center text-[15px] font-extrabold text-primary transition hover:-translate-y-0.5 disabled:opacity-60"
+				>
+					{rematching ? 'Setting up…' : `Rematch ${opponentName ?? 'them'}`}
+				</button>
+			{/if}
 			<a
 				href="/matchmaking"
 				class="w-full rounded-full border border-border bg-transparent py-4 text-center text-[15px] font-bold text-text no-underline"
-				>Play again</a
+				>New opponent</a
 			>
 		</div>
 	</div>
+	{/if}
 </div>
 
 <Toast />

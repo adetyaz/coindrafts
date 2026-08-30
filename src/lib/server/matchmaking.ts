@@ -5,16 +5,32 @@ import { eq, and, lt, ne } from 'drizzle-orm';
 
 const QUEUE_TIMEOUT_MS = 30_000; // drop stale queue entries so an abandoned search never gets matched
 
-export async function findOpponent(userId: string, contestType: string) {
+export async function findOpponent(
+	userId: string,
+	contestType: string,
+	durationMinutes: number,
+	stakeTier: number
+) {
 	const cutoff = new Date(Date.now() - QUEUE_TIMEOUT_MS);
 
 	// Drop stale entries so they don't get matched
 	await db.delete(matchmakingQueue).where(lt(matchmakingQueue.queuedAt, cutoff));
 
+	// Duration is part of the match, not a detail settled afterwards — two
+	// players who picked different game lengths are not a valid pairing.
 	const candidate = await db
 		.select()
 		.from(matchmakingQueue)
-		.where(and(eq(matchmakingQueue.contestType, contestType), ne(matchmakingQueue.userId, userId)))
+		.where(
+			and(
+				eq(matchmakingQueue.contestType, contestType),
+				eq(matchmakingQueue.durationMinutes, durationMinutes),
+				// Same tier only. Pairing different stakes would mean one player
+				// risking more than they agreed to.
+				eq(matchmakingQueue.stakeTier, stakeTier),
+				ne(matchmakingQueue.userId, userId)
+			)
+		)
 		.limit(1)
 		.then((rows) => rows[0] ?? null);
 
@@ -31,13 +47,18 @@ export async function findOpponent(userId: string, contestType: string) {
 	return candidate.userId;
 }
 
-export async function enqueue(userId: string, contestType: string) {
+export async function enqueue(
+	userId: string,
+	contestType: string,
+	durationMinutes: number,
+	stakeTier: number
+) {
 	await db
 		.insert(matchmakingQueue)
-		.values({ userId, contestType, queuedAt: new Date() })
+		.values({ userId, contestType, durationMinutes, stakeTier, queuedAt: new Date() })
 		.onConflictDoUpdate({
 			target: matchmakingQueue.userId,
-			set: { contestType, queuedAt: new Date() }
+			set: { contestType, durationMinutes, stakeTier, queuedAt: new Date() }
 		});
 }
 

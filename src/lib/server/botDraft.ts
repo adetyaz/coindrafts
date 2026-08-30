@@ -34,7 +34,7 @@ const SECTORS = ['l1', 'l2', 'defi', 'meme', 'wildcard'] as const;
 
 /** Drafts 5 sector-correct picks from the live token pool for a bot opponent. */
 export async function draftBotLineup(): Promise<BotPick[]> {
-	const tokens = await getTokensWithPrices(30);
+	const tokens = await getTokensWithPrices();
 
 	const bySector = new Map<string, TokenWithPrice[]>(SECTORS.map((s) => [s, []]));
 	for (const t of tokens) {

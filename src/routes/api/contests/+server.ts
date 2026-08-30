@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { contests } from '$lib/server/schema';
 import { eq, or } from 'drizzle-orm';
 import { parseSessionToken } from '$lib/server/auth';
+import { DEFAULT_DURATION_MINUTES, normalizeDuration } from '$lib/constants';
 
 export async function GET({ cookies }) {
 	const token = cookies.get('session');
@@ -29,8 +30,12 @@ export async function POST({ request, cookies }) {
 	const body = await request.json();
 	const type = body.type === 'weekly' ? 'weekly' : 'daily';
 	const isPaper = body.mode === 'paper';
+	const durationMinutes = normalizeDuration(body.durationMinutes ?? DEFAULT_DURATION_MINUTES);
 
-	// Option A: reuse any open or live contest the user already has of the same type/mode
+	// Reuse any open or live contest the user already has of the same
+	// type/mode/duration. Duration is part of the identity here: a 20-minute game
+	// and a 24-hour game are different games, so reusing one for the other would
+	// silently hand back a contest with the wrong clock.
 	const existing = await db
 		.select()
 		.from(contests)
@@ -41,7 +46,8 @@ export async function POST({ request, cookies }) {
 					(c) =>
 						(c.status === 'open' || c.status === 'live') &&
 						c.type === type &&
-						Boolean(c.isPaper) === isPaper
+						Boolean(c.isPaper) === isPaper &&
+						(c.durationMinutes ?? DEFAULT_DURATION_MINUTES) === durationMinutes
 				) ?? null
 		);
 
@@ -57,6 +63,7 @@ export async function POST({ request, cookies }) {
 			userBId: null,
 			type,
 			isPaper,
+			durationMinutes,
 			status: 'open'
 		})
 		.returning();

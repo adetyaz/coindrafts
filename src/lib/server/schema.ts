@@ -41,9 +41,14 @@ export const contests = pgTable('contests', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	userAId: uuid('user_a_id').references(() => users.id),
 	userBId: uuid('user_b_id').references(() => users.id),
-	type: text('type').default('daily'), // 'daily' | 'weekly'
+	type: text('type').default('daily'), // 'daily' | 'weekly' — kept for XP multiplier + labelling
 	status: text('status').default('open'), // 'open' | 'live' | 'resolved'
 	isPaper: boolean('is_paper').default(false), // practice mode — bot-only, no real XP/streak/badges/league impact
+	// Real chosen game length. Duration used to be derived from `type` (1 or 7
+	// days, hardcoded at lock time), which made short games impossible. It's now
+	// picked before matching and matched on. Default 1440 = 24h, so every
+	// existing contest keeps exactly the behaviour it had.
+	durationMinutes: integer('duration_minutes').default(1440),
 	startAt: timestamp('start_at'),
 	endAt: timestamp('end_at'),
 	winnerId: uuid('winner_id').references(() => users.id)
@@ -114,8 +119,50 @@ export const tournaments = pgTable('tournaments', {
 	fundingMode: text('funding_mode').default('free'), // 'free' only, for now
 	payoutStructure: text('payout_structure').default('winner_take_all'), // 'winner_take_all' | 'top3_weighted'
 	sectorRestriction: text('sector_restriction'), // 'l1'|'l2'|'defi'|'meme'|'wildcard', null = unrestricted
-	groupSize: integer('group_size').default(4), // min participants per qualifier group
-	status: text('status').default('open'), // 'open' | 'active' | 'resolved'
+	groupSize: integer('group_size').default(4), // participants per qualifier group
+	// Minimum total participants for the tournament to be viable. At
+	// registrationClosesAt this single number decides which of the two very
+	// different closes happens — start, or cancel.
+	minPlayers: integer('min_players').default(2),
+	// When joining stops. The same instant is either the start or the death of
+	// the tournament, depending on minPlayers — see the "Two different closes"
+	// section in mode5-tournament-checklist.md.
+	registrationClosesAt: timestamp('registration_closes_at'),
+	// 'cancelled' is a real terminal state, distinct from 'resolved': the
+	// tournament never ran and nobody won. Without it a dead tournament would
+	// either sit in 'open' forever (still listed, still joinable) or be faked as
+	// 'resolved' (implying a winner). Once funding exists, this is also the
+	// branch that must refund every stake.
+	status: text('status').default('open'), // 'open' | 'active' | 'resolved' | 'cancelled'
+	// Auto-created tournaments keep the public list populated. They cancel
+	// silently when nobody joins, which is the expected path, not a failure —
+	// so they're flagged to keep that noise out of user-facing notifications.
+	isAutoCreated: boolean('is_auto_created').default(false),
+	createdAt: timestamp('created_at').defaultNow()
+});
+
+// ─── Tournament Invites ───────────────────────────────────────────────────────
+// How a private tournament is joined — it isn't listed publicly, so an invite is
+// the only way in.
+//
+// The token is the invite. Email is a *delivery mechanism* for that token, not
+// the mechanism itself: an invite works as a shareable link whether or not mail
+// is configured, which means the feature doesn't depend on SMTP being set up and
+// a bounced email never costs someone their place.
+
+export const tournamentInvites = pgTable('tournament_invites', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	tournamentId: uuid('tournament_id').references(() => tournaments.id),
+	// Unguessable — this is the credential that grants access.
+	token: text('token').notNull().unique(),
+	// Null for a plain shareable link. Set when addressed to someone specific.
+	email: text('email'),
+	invitedBy: uuid('invited_by').references(() => users.id),
+	// Who actually used it. An invite is single-use once claimed, so a link
+	// forwarded on can't quietly admit a crowd.
+	acceptedBy: uuid('accepted_by').references(() => users.id),
+	acceptedAt: timestamp('accepted_at'),
+	emailSentAt: timestamp('email_sent_at'),
 	createdAt: timestamp('created_at').defaultNow()
 });
 
@@ -230,7 +277,121 @@ export const matchmakingQueue = pgTable('matchmaking_queue', {
 		.primaryKey()
 		.references(() => users.id),
 	contestType: text('contest_type').notNull(),
+	// Players are matched on duration as well as type — the queue previously
+	// couldn't express "20 minutes", so every search was implicitly 24h.
+	durationMinutes: integer('duration_minutes').default(1440).notNull(),
+	// And on stake tier: being matched on a tier IS the agreement to that stake,
+	// which is what removes any need to negotiate one afterwards. 0 = no wager.
+	stakeTier: integer('stake_tier').default(0).notNull(),
 	queuedAt: timestamp('queued_at').defaultNow().notNull()
+});
+
+// ─── Stakes ───────────────────────────────────────────────────────────────────
+// A wager attached to a game. Deliberately a sidecar rather than columns on
+// `contests`, so the same mechanic works for a 1v1, a lobby or a tournament
+// without any of them knowing how settlement happens — the "plug and play
+// across all modes" requirement.
+//
+// Mirrors the `lineups.contestId | lobbyId` convention already used here:
+// exactly one of the three FKs is set.
+//
+// `currency` + `settlementMode` are what make this swappable. Today everything
+// runs on 'xp' — real stakes players care about, no chain, no gas, fully
+// testable. An on-chain provider later implements the same interface and only
+// these two fields change.
+
+export const stakes = pgTable('stakes', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	contestId: uuid('contest_id').references(() => contests.id),
+	lobbyId: uuid('lobby_id').references(() => lobbies.id),
+	tournamentId: uuid('tournament_id').references(() => tournaments.id),
+	// The tier both players matched on — the agreement in principle.
+	tierAmount: integer('tier_amount').notNull(),
+	// What each player actually risks: the LOWER of the two commits, so nobody
+	// is ever pushed above their own number. Null until both have committed.
+	agreedAmount: integer('agreed_amount'),
+	currency: text('currency').default('xp').notNull(), // 'xp' | '0g' | 'usd'
+	settlementMode: text('settlement_mode').default('xp').notNull(), // 'xp' | 'onchain' | 'custodial'
+	// proposed → agreed → locked → settled | refunded | cancelled
+	status: text('status').default('proposed').notNull(),
+	createdAt: timestamp('created_at').defaultNow(),
+	settledAt: timestamp('settled_at')
+});
+
+// ─── Stake Participants ───────────────────────────────────────────────────────
+// One row per player in a wager. `committed` is what they privately said they'd
+// risk; the stake settles at the minimum across participants.
+
+export const stakeParticipants = pgTable('stake_participants', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	stakeId: uuid('stake_id').references(() => stakes.id),
+	userId: uuid('user_id').references(() => users.id),
+	// What this player is willing to risk. Private until both have committed —
+	// that's what makes it a blind commit rather than a negotiation.
+	committed: integer('committed'),
+	// Signed: positive for a win, negative for a loss. Written at settlement.
+	payout: integer('payout'),
+	// Required before any amount can be set (G-03 AC 1).
+	confirmedAdult: boolean('confirmed_adult').default(false),
+	committedAt: timestamp('committed_at')
+});
+
+// ─── AI Assist Receipts ───────────────────────────────────────────────────────
+// A record, per use of the AI draft agent, of which inference produced the
+// picks and what it cost.
+//
+// Why this exists: the agent charges 15 XP per slot, which is a claim the app
+// otherwise cannot back up — a player just has to trust that the server
+// charged them, and an opponent has no way to know AI was used at all. Storing
+// the 0G trace turns "we penalise AI-assisted drafting" from a house rule into
+// a record that can be shown.
+//
+// Honest scope: 0G's Router returns a signed billing receipt naming a
+// TEE-attested provider, addressable by request id — but exposes no attestation
+// endpoint, so this is tamper-evident, not self-verifiable. UI wording is
+// "verified on 0G", never "cryptographically proven".
+//
+// Written only when an inference actually produced picks; a procedural fallback
+// records nothing, because no AI was involved.
+
+export const aiAssists = pgTable('ai_assists', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	userId: uuid('user_id').references(() => users.id),
+	contestId: uuid('contest_id').references(() => contests.id),
+	sectors: text('sectors').notNull(), // comma-separated slots the agent filled
+	slotCount: integer('slot_count').notNull(),
+	xpCharged: integer('xp_charged').notNull(),
+	freeHitUsed: boolean('free_hit_used').default(false),
+	isPaper: boolean('is_paper').default(false),
+	// ── 0G inference receipt ──
+	via: text('via').notNull(), // '0g' | 'groq'
+	model: text('model'),
+	provider: text('provider'), // 0G provider address
+	requestId: text('request_id'), // addressable inference id
+	totalCost: text('total_cost'), // neuron string; text to avoid precision loss
+	createdAt: timestamp('created_at').defaultNow()
+});
+
+// ─── Price Samples ────────────────────────────────────────────────────────────
+// Intraday price history for the live race screen.
+//
+// Why this table exists: SoSoValue *does* expose klines, but this API key plan
+// is limited to the `1d` interval — 1m/15m/1h all return 400301 "requires a
+// whitelisted API key". Daily candles are useless for a 10-minute game, and
+// there is no batch price endpoint either, so history has to be accumulated
+// here from the snapshots the live endpoint already fetches.
+//
+// Samples are written by viewers polling a running game, and are throttled so
+// two people watching the same contest don't double-write. Scoring never reads
+// this table — results always come from locked entry prices — so a gap in
+// sampling degrades the graph, never the outcome.
+
+export const priceSamples = pgTable('price_samples', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	contestId: uuid('contest_id').references(() => contests.id),
+	currencyId: text('currency_id').notNull(),
+	price: numeric('price').notNull(),
+	sampledAt: timestamp('sampled_at').defaultNow().notNull()
 });
 
 // ─── User Badges ──────────────────────────────────────────────────────────────

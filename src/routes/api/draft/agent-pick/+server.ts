@@ -1,9 +1,10 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/schema';
+import { users, aiAssists } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { parseSessionToken } from '$lib/server/auth';
 import { pickForSectors } from '$lib/server/draftAgent';
+import { isInsufficientBalance, AiConfigError } from '$lib/server/aiCompute';
 
 const XP_COST_PER_SLOT = 15;
 
@@ -30,10 +31,26 @@ export async function POST({ request, cookies }) {
 	if (!user) return json({ error: 'User not found' }, { status: 404 });
 
 	let picks;
+	let trace;
 	try {
-		picks = await pickForSectors(sectors);
+		({ picks, trace } = await pickForSectors(sectors));
 	} catch (e) {
 		console.error('[/api/draft/agent-pick]', e);
+		// 0G bills per inference, so an empty balance is an expected operational
+		// state, not a crash. It used to surface as a generic 502 with nothing
+		// pointing at the actual cause.
+		if (e instanceof AiConfigError) {
+			return json({ error: e.message, reason: 'ai_misconfigured' }, { status: 500 });
+		}
+		if (isInsufficientBalance(e)) {
+			return json(
+				{
+					error: 'The AI provider account is out of balance, so the draft agent is unavailable. Your XP was not charged.',
+					reason: 'insufficient_balance'
+				},
+				{ status: 503 }
+			);
+		}
 		return json({ error: 'Draft agent unavailable' }, { status: 502 });
 	}
 
@@ -50,5 +67,39 @@ export async function POST({ request, cookies }) {
 			.where(eq(users.id, parsed.userId));
 	}
 
-	return json({ picks, xpCharged, freeHitUsed, isPaper });
+	// Receipt. Only recorded when an inference actually produced the picks —
+	// `trace` is null when the model failed and the procedural fallback ran, and
+	// recording that as AI-assisted would be a lie in the player's disfavour.
+	// Never allowed to fail the request: the picks are already made and the XP
+	// already charged, so a bookkeeping error must not undo the user's action.
+	if (trace) {
+		try {
+			await db.insert(aiAssists).values({
+				userId: parsed.userId,
+				contestId: typeof body?.contestId === 'string' ? body.contestId : null,
+				sectors: sectors.join(','),
+				slotCount: sectors.length,
+				xpCharged,
+				freeHitUsed,
+				isPaper,
+				via: trace.via,
+				model: trace.model,
+				provider: trace.provider,
+				requestId: trace.requestId,
+				totalCost: trace.totalCost
+			});
+		} catch (e) {
+			console.error('[/api/draft/agent-pick] receipt write failed:', e);
+		}
+	}
+
+	return json({
+		picks,
+		xpCharged,
+		freeHitUsed,
+		isPaper,
+		// Handed back so the draft screen can show what backed the picks.
+		verifiedOn: trace?.via === '0g' ? '0g' : null,
+		requestId: trace?.requestId ?? null
+	});
 }

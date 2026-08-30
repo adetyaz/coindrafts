@@ -28,20 +28,52 @@ import type { Stream } from 'groq-sdk/lib/streaming';
 
 const GROQ_MODEL = 'openai/gpt-oss-120b';
 
+export class AiConfigError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'AiConfigError';
+	}
+}
+
+/**
+ * Resolves the active inference backend.
+ *
+ * **0G is not best-effort.** When `USE_0G_COMPUTE=true`, an incomplete 0G config
+ * now throws instead of quietly serving Groq. The previous behaviour logged a
+ * warning to a server console nobody reads and carried on — so the app could
+ * claim to be running on 0G while every answer came from Groq, and the only
+ * evidence was a line in a terminal. That is exactly the failure you can't
+ * afford when "verified on 0G" is written on the screen: a receipt is worthless
+ * if the thing it attests to might silently not have happened.
+ *
+ * Groq remains available, but only as a deliberate choice — set
+ * `USE_0G_COMPUTE=false`. It is no longer something the app can fall into.
+ */
 export function getAiClient(): { client: Groq; model: string; via: '0g' | 'groq' } {
 	const wants0G = env.USE_0G_COMPUTE === 'true';
 	const apiKey = env.ZG_COMPUTE_API_KEY;
 	const baseURL = env.ZG_COMPUTE_BASE_URL;
 	const model = env.ZG_COMPUTE_MODEL;
 
-	if (wants0G && apiKey && baseURL && model) {
-		return { client: new Groq({ apiKey, baseURL }), model, via: '0g' };
+	if (wants0G) {
+		const missing = [
+			!apiKey && 'ZG_COMPUTE_API_KEY',
+			!baseURL && 'ZG_COMPUTE_BASE_URL',
+			!model && 'ZG_COMPUTE_MODEL'
+		].filter(Boolean);
+
+		if (missing.length > 0) {
+			throw new AiConfigError(
+				`USE_0G_COMPUTE=true but ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} not set. ` +
+					'Refusing to silently fall back to Groq — set the missing value(s), or set USE_0G_COMPUTE=false to use Groq deliberately.'
+			);
+		}
+
+		return { client: new Groq({ apiKey, baseURL }), model: model!, via: '0g' };
 	}
 
-	if (wants0G) {
-		console.warn(
-			'[ai] USE_0G_COMPUTE is true but ZG_COMPUTE_API_KEY/ZG_COMPUTE_BASE_URL/ZG_COMPUTE_MODEL are not all set — falling back to Groq'
-		);
+	if (!GROQ_API_KEY) {
+		throw new AiConfigError('USE_0G_COMPUTE is not true and GROQ_API_KEY is not set — no AI backend is configured.');
 	}
 
 	return { client: new Groq({ apiKey: GROQ_API_KEY }), model: GROQ_MODEL, via: 'groq' };
@@ -53,6 +85,65 @@ type ChatParams = {
 	temperature?: number;
 	stream?: boolean;
 };
+
+/**
+ * What 0G returns alongside a completion, in `x_0g_trace`. Probed directly
+ * against the Router — this is the real shape, not documentation:
+ *
+ *   { billing: { input_cost, output_cost, total_cost },
+ *     provider: "0xa48f01287233509FD694a22Bf840225062E67836",
+ *     request_id: "23ff4dbb-9bc4-4186-9ec7-0ad720433a3a" }
+ *
+ * Deliberate limitation, stated so nobody overclaims on it: the Router exposes
+ * **no attestation endpoint** (`/attestation`, `/verify`, `/attestations`,
+ * `/tee/attestation` all 404). So this is a signed billing receipt naming a
+ * TEE-attested provider — tamper-evident and independently addressable by
+ * request id — but NOT a TDX quote we can verify ourselves. Language in the UI
+ * should say "verified on 0G", never "cryptographically proven".
+ */
+export type ComputeTrace = {
+	provider: string | null;
+	requestId: string | null;
+	totalCost: string | null;
+	model: string;
+	via: '0g' | 'groq';
+};
+
+/** Pulls the 0G trace off a completion. Returns a Groq-shaped trace when 0G isn't the active path. */
+export function extractTrace(res: unknown, model: string, via: '0g' | 'groq'): ComputeTrace {
+	const base: ComputeTrace = { provider: null, requestId: null, totalCost: null, model, via };
+	if (!res || typeof res !== 'object') return base;
+	const trace = (res as Record<string, unknown>).x_0g_trace as Record<string, unknown> | undefined;
+	if (!trace) return base;
+	const billing = trace.billing as Record<string, unknown> | undefined;
+	return {
+		provider: typeof trace.provider === 'string' ? trace.provider : null,
+		requestId: typeof trace.request_id === 'string' ? trace.request_id : null,
+		totalCost: billing && typeof billing.total_cost === 'string' ? billing.total_cost : null,
+		model,
+		via
+	};
+}
+
+/** Which backend served the last call — needed to label a trace correctly. */
+export function activeBackend(): { model: string; via: '0g' | 'groq' } {
+	const { model, via } = getAiClient();
+	return { model, via };
+}
+
+/**
+ * 0G charges per inference, so an exhausted balance is a real, expected failure
+ * mode rather than a bug — and one that surfaced as a generic 502 before this.
+ * Detected from the Router's own error shape.
+ */
+export function isInsufficientBalance(e: unknown): boolean {
+	const msg = e instanceof Error ? e.message : String(e ?? '');
+	return (
+		msg.includes('402') ||
+		msg.toLowerCase().includes('insufficient_balance') ||
+		msg.toLowerCase().includes('insufficient balance')
+	);
+}
 
 /**
  * Backend-agnostic chat completion. Routes to the right path for whichever

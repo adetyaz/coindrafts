@@ -1,4 +1,6 @@
 import { SOSOVALUE_API_KEY, SOSOVALUE_BASE_URL } from '$env/static/private';
+import { getAllPrices } from '$lib/server/prices';
+import { KNOWN_SECTOR_SYMBOLS, isExcluded } from '$lib/sectors';
 
 // Simple in-memory cache (replace with Redis if scaling)
 const cache = new Map<string, { data: unknown; expires: number }>();
@@ -117,35 +119,60 @@ type RawSnapshot = {
 	marketcap_rank?: number;
 };
 
-export async function getTokensWithPrices(limit = 30): Promise<TokenWithPrice[]> {
+// The draft pool. This used to be 30 because each token cost its own snapshot
+// request and thirty in parallel already rate-limited — the cap was a symptom,
+// not a choice, and it kept every Solana-ecosystem token except SOL out of the
+// game. Priced in one batch call now, so a wider pool costs nothing extra.
+const DEFAULT_POOL_SIZE = 150;
+
+export async function getTokensWithPrices(limit = DEFAULT_POOL_SIZE): Promise<TokenWithPrice[]> {
 	const cacheKey = `__tokens_prices_${limit}`;
 	const hit = cache.get(cacheKey);
 	if (hit && hit.expires > Date.now()) return hit.data as TokenWithPrice[];
 
 	const rawTokens = (await getTokens()) as RawToken[];
-	const top = rawTokens.slice(0, limit);
 
-	// Fetch all snapshots in parallel — failures are graceful (null price data)
-	const results = await Promise.allSettled(
-		top.map((t) => getSnapshot(t.currency_id) as Promise<RawSnapshot>)
-	);
+	// Top-N by market cap, PLUS every token the sector classifier recognises
+	// wherever it sits in the list. A pure top-N slice is why the draft board was
+	// all majors: the Solana ecosystem (RAY 315, ORCA 406, BONK 441, JTO 595,
+	// PYTH 597, WIF 603, JUP 630) all rank below any sane cutoff, so DeFi and
+	// Meme slots had almost nothing recognisable to choose from.
+	const known = new Set(KNOWN_SECTOR_SYMBOLS);
+	const picked = new Map<string, RawToken>();
+	for (const t of rawTokens.slice(0, limit)) picked.set(t.currency_id, t);
+	for (const t of rawTokens) {
+		if (t.symbol && known.has(t.symbol.toUpperCase())) picked.set(t.currency_id, t);
+	}
+	const top = [...picked.values()];
+
+	// One request for the whole market instead of one per token.
+	const batch = await getAllPrices().catch(() => null);
 
 	const merged: TokenWithPrice[] = top.map((t, i) => {
-		const r = results[i];
-		const snap: RawSnapshot | null = r.status === 'fulfilled' ? r.value : null;
+		const symbol = (t.symbol ?? '').toUpperCase();
+		const q = batch?.get(symbol) ?? null;
 		return {
 			currency_id: t.currency_id,
 			symbol: t.symbol,
 			name: t.name,
-			price: snap?.price ?? null,
-			change24h:
-				snap?.change_pct_24h != null ? Number((snap.change_pct_24h * 100).toFixed(2)) : null,
-			volume24h: snap?.turnover_24h ?? null,
-			rank: snap?.marketcap_rank ?? null
+			price: q?.price ?? null,
+			change24h: q?.change24h ?? null,
+			volume24h: q?.volume24h ?? null,
+			// SoSoValue orders /currencies by market cap, so list position is the
+			// rank — previously this came from a per-token snapshot we no longer make.
+			rank: i + 1
 		};
 	});
 
-	// Cache merged result for 5 minutes — matches the per-snapshot TTL above
-	cache.set(cacheKey, { data: merged, expires: Date.now() + 300_000 });
-	return merged;
+	// Only tokens we can actually price are draftable — a token with no price
+	// can't be scored, so offering it would create a lineup slot that resolves
+	// to nothing. Stablecoins and wrapped duplicates are excluded outright: the
+	// game scores on price movement, so they're guaranteed-zero picks (see
+	// EXCLUDED_SYMBOLS). Filtered here so every surface — draft board, bots and
+	// the AI agent — inherits the same pool.
+	const priceable = merged.filter((t) => t.price != null && !isExcluded(t.symbol));
+
+	// Shorter TTL than before: the batch is cheap, so freshness costs little.
+	cache.set(cacheKey, { data: priceable, expires: Date.now() + 60_000 });
+	return priceable;
 }

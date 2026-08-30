@@ -13,18 +13,25 @@
 	let lastAttemptedWallet = '';
 	let walletConnected = $state(false);
 	let signError = $state(false);
+	// Why the last sign-in failed, when the server told us. Without this a
+	// database outage looked identical to a rejected signature.
+	let signErrorMessage = $state('');
 	let openNavGroup = $state<string | null>(null);
 	let mobileMenuOpen = $state(false);
 
 	const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
+		// Every entry here must be somewhere a user can act from a cold click.
+		// `/contest/result` was removed for failing that test: a result belongs to
+		// a specific contest, so browsing to it with no id rendered a fabricated
+		// one. Results are reached from the contest list on the dashboard.
 		{
 			label: 'play',
 			items: [
 				{ href: '/draft', label: 'draft' },
-				{ href: '/matchmaking', label: 'matchmaking' },
+				{ href: '/scrimmage', label: 'scrimmage' },
+				{ href: '/matchmaking', label: 'single match' },
 				{ href: '/lobby', label: 'multiplayer' },
-				{ href: '/tournament', label: 'tournament' },
-				{ href: '/contest/result', label: 'result' }
+				{ href: '/tournament', label: 'tournament' }
 			]
 		},
 		{
@@ -158,6 +165,10 @@
 			body: JSON.stringify({ type: 'evm', address, message, signature })
 		});
 
+		if (!verifyRes.ok) {
+			const payload = await verifyRes.json().catch(() => ({}));
+			signErrorMessage = payload?.error ?? '';
+		}
 		return verifyRes.ok;
 	}
 
@@ -180,6 +191,10 @@
 			body: JSON.stringify({ type: 'solana', address, message, signature })
 		});
 
+		if (!verifyRes.ok) {
+			const payload = await verifyRes.json().catch(() => ({}));
+			signErrorMessage = payload?.error ?? '';
+		}
 		return verifyRes.ok;
 	}
 
@@ -226,6 +241,7 @@
 
 	function retrySign() {
 		signError = false;
+		signErrorMessage = '';
 		lastAttemptedWallet = '';
 		void ensureWalletSession();
 	}
@@ -389,7 +405,12 @@
 			{#if authInFlight}
 				<span class="text-xs whitespace-nowrap text-text-muted">Signing...</span>
 			{:else if signError}
-				<span class="text-xs whitespace-nowrap text-negative-ink">Signature failed.</span>
+				<span
+					class="max-w-[34ch] truncate text-xs text-negative-ink"
+					title={signErrorMessage || 'Signature failed.'}
+				>
+					{signErrorMessage || 'Signature failed.'}
+				</span>
 				<button
 					onclick={retrySign}
 					class="cursor-pointer rounded-full border-none bg-primary px-3.5 py-1.5 text-xs font-bold whitespace-nowrap text-text transition hover:bg-primary-hover"
