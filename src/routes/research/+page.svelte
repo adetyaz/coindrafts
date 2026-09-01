@@ -6,6 +6,8 @@
 	import Toast from '$lib/components/Toast.svelte';
 	import TermOfDay from '$lib/components/TermOfDay.svelte';
 
+	type NewsCategory = 'regulation' | 'security' | 'defi' | 'nfts' | 'markets' | 'business' | 'general';
+
 	type Article = {
 		id: string;
 		title: string;
@@ -14,7 +16,24 @@
 		date: string | null;
 		url: string | null;
 		symbols: string[];
+		category: NewsCategory;
+		// Draft-sector mapping — used only to award the right sector boost when
+		// an article is read, never shown to the reader as a filter/label.
 		sector: string;
+	};
+
+	// Industry-standard news topics, matching how real crypto news sites
+	// categorize (CoinDesk, The Block, Decrypt) — not this app's own
+	// L1/L2/DeFi/Meme/Wildcard draft-sector taxonomy, which was being reused
+	// here and didn't mean anything as a news filter.
+	const CATEGORY_META: Record<NewsCategory, { label: string; color: string; ink: string }> = {
+		markets: { label: 'Markets', color: 'var(--color-mint)', ink: 'var(--color-mint-ink)' },
+		defi: { label: 'DeFi', color: 'var(--color-blue)', ink: 'var(--color-blue-ink)' },
+		regulation: { label: 'Regulation', color: 'var(--color-red)', ink: 'var(--color-red-ink)' },
+		security: { label: 'Security', color: 'var(--color-amber)', ink: 'var(--color-amber-ink)' },
+		nfts: { label: 'NFTs', color: 'var(--color-coral)', ink: 'var(--color-coral-ink)' },
+		business: { label: 'Business', color: 'var(--color-sky)', ink: 'var(--color-blue-ink)' },
+		general: { label: 'General', color: 'var(--color-border-strong)', ink: 'var(--color-text-muted)' }
 	};
 
 	type ActiveBoost = { sector: string; expiresAt: string };
@@ -58,17 +77,19 @@
 	}
 
 	const filtered = $derived(
-		activeFilter === 'all' ? articles : articles.filter((a) => a.sector === activeFilter)
+		activeFilter === 'all' ? articles : articles.filter((a) => a.category === activeFilter)
 	);
 
-	// The feed is general market news, not evenly spread across sectors — most
-	// days most tokens simply don't have news. A filter tab for a sector with
-	// zero loaded articles is a dead end (click it, see nothing, every time),
-	// so only sectors actually present in the current feed get a tab.
-	const availableSectors = $derived(
-		SECTORS.filter((s) => articles.some((a) => a.sector === s.id))
+	// The feed isn't evenly spread across topics day to day. A filter tab for
+	// a category with zero loaded articles is a dead end (click it, see
+	// nothing, every time), so only categories actually present get a tab.
+	const availableCategories = $derived(
+		(Object.keys(CATEGORY_META) as NewsCategory[]).filter((c) => articles.some((a) => a.category === c))
 	);
 
+	// Game-sector display name — used only for the boost-award toast and the
+	// "Boosts ready" sidebar, both of which are about draft sectors, not the
+	// news categories above.
 	function sectorName(id: string): string {
 		return SECTORS.find((s) => s.id === id)?.name ?? 'Wildcard';
 	}
@@ -118,7 +139,7 @@
 		<div>
 			<h1 class="text-[40px] leading-none font-black tracking-[-0.04em]">Knowledge Base</h1>
 			<p class="mt-2 text-sm text-text-muted">
-				Read a sector briefing, claim the boost, take it into the draft
+				News, filtered the way real crypto news sites do — read one, claim the boost, take it into the draft
 			</p>
 		</div>
 		<div class="flex flex-wrap gap-2">
@@ -129,17 +150,19 @@
 					: 'background:var(--color-surface);border:1px solid var(--color-border);color:var(--color-text-muted)'}
 				onclick={() => (activeFilter = 'all')}>All</button
 			>
-			{#each availableSectors as s (s.id)}
+			{#each availableCategories as c (c)}
 				<button
 					class="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition"
-					style={activeFilter === s.id
-						? `background:${sectorTheme(s.id).color};border:1px solid ${sectorTheme(s.id).color};color:var(--color-ink)`
+					style={activeFilter === c
+						? `background:${CATEGORY_META[c].color};border:1px solid ${CATEGORY_META[c].color};color:var(--color-ink)`
 						: 'background:var(--color-surface);border:1px solid var(--color-border);color:var(--color-text-muted)'}
-					onclick={() => (activeFilter = s.id)}>{s.name}</button
+					onclick={() => (activeFilter = c)}>{CATEGORY_META[c].label}</button
 				>
 			{/each}
 		</div>
 	</div>
+
+	<div class="mb-3 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">News</div>
 
 	<div class="flex flex-wrap gap-4.5">
 		<div class="min-w-0 flex-[1_1_520px]">
@@ -150,7 +173,7 @@
 			{:else}
 				<div class="flex flex-col gap-3.5">
 					{#each filtered as article (article.id)}
-						{@const theme = sectorTheme(article.sector)}
+						{@const cat = CATEGORY_META[article.category]}
 						{@const isOpen = expandedId === article.id}
 						<div class="rounded-[20px] border border-border bg-surface p-6">
 							<button
@@ -162,8 +185,8 @@
 									<div class="mb-2.5 flex flex-wrap items-center gap-2.5">
 										<span
 											class="rounded-full px-2.5 py-1 text-[10px] font-extrabold tracking-[0.1em] uppercase"
-											style="background:{theme.color}24;border:1px solid {theme.color};color:{theme.ink}"
-											>{sectorName(article.sector)}</span
+											style="background:{cat.color}24;border:1px solid {cat.color};color:{cat.ink}"
+											>{cat.label}</span
 										>
 										<span class="font-mono text-[11px] text-text-muted"
 											>{article.source}{article.date ? ` · ${fmtDate(article.date)}` : ''}</span
