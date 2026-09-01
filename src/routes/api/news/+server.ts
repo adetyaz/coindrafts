@@ -16,20 +16,26 @@ export async function GET() {
 		const data = (await getNews()) as { list?: RawNewsItem[] };
 		const list = Array.isArray(data?.list) ? data.list : [];
 
-		const items = list.map((item) => {
-			const en = item.multilanguageContent?.find((c) => c.language === 'en');
-			const symbols = (item.matchedCurrencies ?? []).map((c) => c.name ?? '').filter(Boolean);
-			return {
-				id: item.id,
-				title: en?.title ?? '',
-				content: en?.content ?? '',
-				source: item.author ?? 'SoSoValue',
-				date: item.releaseTime ? new Date(item.releaseTime).toISOString() : null,
-				url: item.sourceLink ?? null,
-				symbols,
-				sector: classifySector(symbols)
-			};
-		});
+		const items = list
+			.map((item) => {
+				const en = item.multilanguageContent?.find((c) => c.language === 'en');
+				const symbols = (item.matchedCurrencies ?? []).map((c) => c.name ?? '').filter(Boolean);
+				return {
+					id: item.id,
+					title: en?.title ?? '',
+					content: en?.content ?? '',
+					source: item.author ?? 'SoSoValue',
+					date: item.releaseTime ? new Date(item.releaseTime).toISOString() : null,
+					url: item.sourceLink ?? null,
+					symbols,
+					sector: classifySector(symbols)
+				};
+			})
+			// SoSoValue's feed is general market/macro news, not crypto-only —
+			// an item with no matched currencies at all (found live: general
+			// politics with zero crypto relevance) isn't classifiable into a
+			// sector and doesn't belong on a crypto knowledge base regardless.
+			.filter((item) => item.symbols.length > 0);
 
 		return json(items);
 	} catch (error) {

@@ -61,6 +61,14 @@
 		activeFilter === 'all' ? articles : articles.filter((a) => a.sector === activeFilter)
 	);
 
+	// The feed is general market news, not evenly spread across sectors — most
+	// days most tokens simply don't have news. A filter tab for a sector with
+	// zero loaded articles is a dead end (click it, see nothing, every time),
+	// so only sectors actually present in the current feed get a tab.
+	const availableSectors = $derived(
+		SECTORS.filter((s) => articles.some((a) => a.sector === s.id))
+	);
+
 	function sectorName(id: string): string {
 		return SECTORS.find((s) => s.id === id)?.name ?? 'Wildcard';
 	}
@@ -121,7 +129,7 @@
 					: 'background:var(--color-surface);border:1px solid var(--color-border);color:var(--color-text-muted)'}
 				onclick={() => (activeFilter = 'all')}>All</button
 			>
-			{#each SECTORS as s (s.id)}
+			{#each availableSectors as s (s.id)}
 				<button
 					class="cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition"
 					style={activeFilter === s.id
