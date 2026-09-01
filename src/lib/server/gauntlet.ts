@@ -568,6 +568,24 @@ export async function ensureVocabPool(): Promise<void> {
 	);
 }
 
+/**
+ * Callers that just need TODAY's question (Gauntlet, Word of the Day) must
+ * never block on a full top-up pass — that's up to 8 sequential AI calls and
+ * can take minutes, which turned a page load into a hang/timeout until the
+ * pool reached VOCAB_POOL_MIN. If there's already at least one usable entry,
+ * answer from it immediately and top up in the background instead. Only
+ * blocks when the pool has never had anything at all — there's nothing to
+ * serve today's question from otherwise.
+ */
+export async function ensureVocabPoolReady(): Promise<void> {
+	const existing = await db.select({ term: vocabPool.term }).from(vocabPool).limit(1);
+	if (existing.length > 0) {
+		ensureVocabPool().catch((e) => console.error('[gauntlet] background vocab pool top-up failed:', e));
+		return;
+	}
+	await ensureVocabPool();
+}
+
 /** Deterministic per-day pick from the pool — same day always picks the same entry. */
 async function pickFromVocabPool(dateStr: string): Promise<QuestionInput | null> {
 	const pool = await db.select().from(vocabPool);
@@ -678,7 +696,7 @@ export async function ensureTodaySeeded(
 	let q: QuestionInput | null = null;
 
 	if (category === 'vocab') {
-		await ensureVocabPool();
+		await ensureVocabPoolReady();
 		q = await pickFromVocabPool(today);
 		if (!q) q = pickVocabSeed(today);
 	} else {

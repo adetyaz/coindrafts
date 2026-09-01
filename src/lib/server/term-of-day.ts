@@ -9,7 +9,7 @@
 import { db } from '$lib/server/db';
 import { dailyTerms, users, vocabPool } from '$lib/server/schema';
 import { eq, sql } from 'drizzle-orm';
-import { ensureVocabPool } from '$lib/server/gauntlet';
+import { ensureVocabPoolReady } from '$lib/server/gauntlet';
 
 // Static fallback — reached only if the shared vocab pool is completely
 // empty and generation has failed for it too (see ensureVocabPool).
@@ -87,7 +87,7 @@ export async function ensureTodayTermSeeded(today = new Date().toISOString().spl
 
 	if (existing.length > 0) return existing[0];
 
-	await ensureVocabPool();
+	await ensureVocabPoolReady();
 	const pool = await db.select().from(vocabPool);
 
 	let t: TermRecord;
