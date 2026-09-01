@@ -72,11 +72,19 @@ if (typeof window !== 'undefined') {
 			// signature; the chain id is recorded but never acted on. Whatever
 			// network the wallet is already on is fine, and asking to change it
 			// makes the app look like it wants a transaction when it doesn't.
+			// `url` MUST match the page's real origin — wallets compare this
+			// against where the connection request actually came from, and a
+			// mismatch is exactly the signal phishing detectors look for. This
+			// was hardcoded to 'coindraft.io', a domain that isn't even live,
+			// while the app runs somewhere else entirely — that's what was
+			// triggering "malicious site" warnings. No `icons` for the same
+			// reason: it pointed at a file that doesn't exist anywhere in the
+			// project, which is its own broken-metadata red flag.
 			metadata: {
 				name: 'CoinDraft',
 				description: 'Fantasy crypto draft platform',
-				url: 'https://coindraft.io',
-				icons: ['https://coindraft.io/icon.png']
+				url: window.location.origin,
+				icons: [`${window.location.origin}/icon.svg`]
 			},
 			features: {
 				analytics: false,
