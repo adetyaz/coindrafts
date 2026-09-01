@@ -2,30 +2,33 @@ import { ethers, network } from 'hardhat';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-// Metadata URIs point at an app endpoint that doesn't exist yet
-// (/api/badges/metadata/<typeId>, returning OpenSea-style JSON — name, image,
-// description). Fine to seed the on-chain catalog before that endpoint is
-// built; wallets/explorers just won't render an image until it is.
+// Metadata URIs are intentionally EMPTY — there is no real domain for this
+// project yet, and no /api/badges/metadata/<typeId> endpoint built. An
+// earlier version of this file used "https://coindraft.io/..." as if that
+// were real; it wasn't (nobody owns or has pointed that domain) and it was
+// never OK to invent one without saying so. Fill these in for real once both
+// exist, then re-run — updateAchievementType() can correct what's already
+// live on-chain too, see fix-achievement-metadata.ts.
 const INITIAL_ACHIEVEMENTS = [
 	{
 		name: 'First Blood',
 		description: 'Won your first head-to-head match against a real opponent.',
-		metadataURI: 'https://coindraft.io/api/badges/metadata/first-win-opponent'
+		metadataURI: ''
 	},
 	{
 		name: 'Scrimmage Starter',
 		description: 'Won your first Scrimmage match against a bot.',
-		metadataURI: 'https://coindraft.io/api/badges/metadata/first-win-bot'
+		metadataURI: ''
 	},
 	{
 		name: 'Sharp Shooter',
 		description: 'Answered a Gauntlet quiz question correctly.',
-		metadataURI: 'https://coindraft.io/api/badges/metadata/quiz-correct'
+		metadataURI: ''
 	},
 	{
 		name: 'Know-It-All',
 		description: 'Answered 5 Gauntlet quiz questions correctly in a row.',
-		metadataURI: 'https://coindraft.io/api/badges/metadata/quiz-streak-5'
+		metadataURI: ''
 	}
 	// Add more here any time — addAchievementType() never needs a redeploy.
 	// A few candidates worth considering later:
