@@ -378,6 +378,20 @@ function validateQuestion(raw: unknown, category: QuestionCategory): QuestionInp
 
 		const term = typeof r.term === 'string' ? r.term.trim() : '';
 		if (!term) return null;
+
+		// A real definition EXPLAINS the term — it isn't the term itself, an
+		// abbreviation of it, or another short term-like label. Found live: the
+		// model sometimes generates a "guess which term this is" question
+		// instead, where every option (including the "correct" one) is just
+		// another term name — "Smart Contract" ended up as its own definition.
+		// Every option must be a real phrase (>=4 words), and the correct one
+		// must not just restate the term.
+		const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+		const termNorm = normalize(term);
+		const defNorm = normalize(matched.label);
+		if (!termNorm || !defNorm || defNorm.includes(termNorm) || termNorm.includes(defNorm)) return null;
+		if (options.some((o) => o.label.trim().split(/\s+/).length < 4)) return null;
+
 		return {
 			question,
 			options,
