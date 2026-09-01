@@ -18,6 +18,13 @@
 	let signErrorMessage = $state('');
 	let openNavGroup = $state<string | null>(null);
 	let mobileMenuOpen = $state(false);
+	// `user` comes from +layout.server.ts, loaded once per navigation — it goes
+	// stale the moment XP changes from an in-place action (answering the
+	// Gauntlet, a contest resolving, a wager settling) with no navigation
+	// after it, since nothing calls invalidateAll() for those. Nav stays
+	// mounted for the whole session, so it polls its own live figure instead
+	// of trusting that snapshot.
+	let liveXp = $state<number | null>(null);
 
 	const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
 		// Every entry here must be somewhere a user can act from a cold click.
@@ -27,19 +34,14 @@
 		{
 			label: 'play',
 			items: [
-				{ href: '/draft', label: 'draft' },
 				{ href: '/scrimmage', label: 'scrimmage' },
 				{ href: '/matchmaking', label: 'single match' },
-				{ href: '/lobby', label: 'multiplayer' },
 				{ href: '/tournament', label: 'tournament' }
 			]
 		},
 		{
 			label: 'compete',
-			items: [
-				{ href: '/leagues', label: 'leagues' },
-				{ href: '/leaderboard', label: 'leaderboard' }
-			]
+			items: [{ href: '/leaderboard', label: 'leaderboard' }]
 		},
 		{
 			label: 'learn',
@@ -60,6 +62,21 @@
 	function groupIsActive(group: (typeof NAV_GROUPS)[number]): boolean {
 		return group.items.some((i) => page.url.pathname.startsWith(i.href));
 	}
+
+	onMount(() => {
+		if (!user) return;
+		async function refreshXp() {
+			try {
+				const res = await fetch('/api/me');
+				if (res.ok) liveXp = (await res.json())?.xpTotal ?? null;
+			} catch {
+				/* keep whatever figure we last had rather than blank it */
+			}
+		}
+		refreshXp();
+		const t = setInterval(refreshXp, 20_000);
+		return () => clearInterval(t);
+	});
 
 	onMount(() => {
 		function handleClickOutside(e: MouseEvent) {
@@ -388,7 +405,7 @@
 
 	<div class="flex shrink-0 items-center gap-2.5">
 		{#if user}
-			<span class="font-mono text-xs whitespace-nowrap text-text-muted">{user.xpTotal ?? 0} XP</span
+			<span class="font-mono text-xs whitespace-nowrap text-text-muted">{liveXp ?? user.xpTotal ?? 0} XP</span
 			>
 			<a
 				href="/profile"

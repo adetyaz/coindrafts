@@ -23,6 +23,24 @@ function bestPerformer(tokens: TokenWithPrice[]): TokenWithPrice | undefined {
 	return tokens.reduce((a, b) => ((a.change24h ?? -Infinity) >= (b.change24h ?? -Infinity) ? a : b));
 }
 
+// Weighted toward the model's top choice, but not locked to it. Two opponents
+// asking the agent at the same time get the same candidate list and the same
+// (fairly deterministic) model — without this, they'd get the exact same
+// lineup, which defeats the point of competing. Ranks beyond the 3rd share
+// the last weight rather than trailing to ~0.
+const RANK_WEIGHTS = [0.55, 0.3, 0.15];
+function weightedPick(rankedSymbols: string[]): string | null {
+	if (rankedSymbols.length === 0) return null;
+	const weights = rankedSymbols.map((_, i) => RANK_WEIGHTS[i] ?? RANK_WEIGHTS[RANK_WEIGHTS.length - 1]);
+	const total = weights.reduce((a, b) => a + b, 0);
+	let r = Math.random() * total;
+	for (let i = 0; i < rankedSymbols.length; i++) {
+		r -= weights[i];
+		if (r <= 0) return rankedSymbols[i];
+	}
+	return rankedSymbols[rankedSymbols.length - 1];
+}
+
 /** Picks one token per requested sector, reasoning over live data via 0G Compute/Groq. */
 export async function pickForSectors(sectors: string[]): Promise<AgentResult> {
 	const tokens = await getTokensWithPrices();
@@ -52,11 +70,16 @@ export async function pickForSectors(sectors: string[]): Promise<AgentResult> {
 	const picks: AgentPick[] = [];
 	for (const sector of wanted) {
 		const candidates = candidatesBySector.get(sector)!;
-		const pickedSymbol = chosen.get(sector);
-		const match =
-			pickedSymbol && !used.has(pickedSymbol.toUpperCase())
-				? candidates.find((t) => (t.symbol ?? '').toUpperCase() === pickedSymbol.toUpperCase())
-				: null;
+		const validSymbols = new Set(candidates.map((t) => (t.symbol ?? '').toUpperCase()));
+		// Only the model's real, unused-so-far suggestions are eligible — an
+		// invented or already-picked symbol just falls out of the running list.
+		const ranked = [
+			...new Set((chosen.get(sector) ?? []).map((s) => s.toUpperCase()))
+		].filter((s) => validSymbols.has(s) && !used.has(s));
+		const pickedSymbol = weightedPick(ranked);
+		const match = pickedSymbol
+			? candidates.find((t) => (t.symbol ?? '').toUpperCase() === pickedSymbol)
+			: null;
 		const fallbackPool = candidates.filter((t) => !used.has((t.symbol ?? '').toUpperCase()));
 		const token =
 			match ??
@@ -77,17 +100,21 @@ export async function pickForSectors(sectors: string[]): Promise<AgentResult> {
 
 async function askAgent(
 	candidatesBySector: Map<string, TokenWithPrice[]>
-): Promise<{ chosen: Map<string, string>; trace: ComputeTrace | null }> {
+): Promise<{ chosen: Map<string, string[]>; trace: ComputeTrace | null }> {
 	const lines: string[] = [];
 	for (const [sector, candidates] of candidatesBySector) {
-		lines.push(`${sector.toUpperCase()} slot — pick one:`);
+		lines.push(`${sector.toUpperCase()} slot — rank your top picks:`);
 		for (const t of candidates.slice(0, 12)) {
 			const chg = t.change24h ?? 0;
 			lines.push(`  ${(t.symbol ?? '').toUpperCase()}: $${t.price} (${chg >= 0 ? '+' : ''}${chg.toFixed(2)}% 24h)`);
 		}
 	}
 
-	const systemPrompt = `You are the CoinDraft AI Draft Agent, helping a player fill their lineup. For each sector slot listed, choose exactly one token symbol from that slot's own candidate list — never invent a symbol that isn't listed. Every slot must get a DIFFERENT token — never reuse the same symbol across two slots, even if their candidate lists overlap. Favor tokens with strong or improving 24h momentum, but use your judgment. Respond with ONLY a JSON object mapping each sector id to your chosen symbol, e.g. {"l1":"ETH","meme":"DOGE"}. No other text.`;
+	// Ranked lists rather than a single pick per slot — the caller samples from
+	// the ranking (weighted toward #1) rather than always taking it verbatim, so
+	// two players hitting the agent on the same live data at the same time
+	// don't get handed each other's exact lineup.
+	const systemPrompt = `You are the CoinDraft AI Draft Agent, helping a player fill their lineup. For each sector slot listed, choose your top 3 token symbols from that slot's own candidate list, ranked best to worst — never invent a symbol that isn't listed. Favor tokens with strong or improving 24h momentum, but use your judgment. Respond with ONLY a JSON object mapping each sector id to an array of up to 3 ranked symbols, e.g. {"l1":["ETH","SOL","AVAX"],"meme":["DOGE","SHIB"]}. No other text.`;
 
 	try {
 		const res = await createChatCompletion({
@@ -108,9 +135,12 @@ async function askAgent(
 		const jsonMatch = raw.match(/\{[\s\S]*\}/);
 		if (!jsonMatch) return { chosen: new Map(), trace };
 		const parsed = JSON.parse(jsonMatch[0]);
-		const out = new Map<string, string>();
-		for (const [sector, symbol] of Object.entries(parsed)) {
-			if (typeof symbol === 'string') out.set(sector, symbol);
+		const out = new Map<string, string[]>();
+		for (const [sector, value] of Object.entries(parsed)) {
+			// Accept a bare string too — cheap robustness against the model
+			// occasionally reverting to the old single-symbol shape.
+			if (typeof value === 'string') out.set(sector, [value]);
+			else if (Array.isArray(value)) out.set(sector, value.filter((s): s is string => typeof s === 'string'));
 		}
 		return { chosen: out, trace };
 	} catch (e) {

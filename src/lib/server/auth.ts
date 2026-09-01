@@ -13,6 +13,8 @@ export interface SessionPayload {
 // then never read, so a leaked cookie stayed valid forever.
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, matching the cookie
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Signs a session payload.
  *
@@ -65,6 +67,13 @@ export function parseSessionToken(token: string): SessionPayload | null {
 		const payload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString()) as SessionPayload;
 
 		if (typeof payload?.userId !== 'string' || typeof payload?.ts !== 'number') return null;
+
+		// The user id must look like a UUID before it reaches the database.
+		// Without this, a token carrying a malformed id makes Postgres throw on
+		// `where id = '...'`, which surfaces as a 500 on every authenticated
+		// route rather than "your session is invalid, sign in again". Found by a
+		// test harness accidentally minting a token with a non-UUID id.
+		if (!UUID_RE.test(payload.userId)) return null;
 
 		// Enforce expiry. A token whose clock has run out is rejected even though
 		// its signature is genuine.

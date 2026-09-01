@@ -83,7 +83,10 @@ export async function POST({ params, request, cookies, url }) {
 		.values({ tournamentId, token: inviteToken, email, invitedBy: parsed.userId })
 		.returning();
 
-	const joinUrl = `${url.origin}/tournament/${tournamentId}?invite=${inviteToken}`;
+	// There's no /tournament/[id] page — this is a single flat page keyed off
+	// query params, not routing. This used to point at /tournament/<id>, a URL
+	// with no matching route at all — every invite link 404'd.
+	const joinUrl = `${url.origin}/tournament?id=${tournamentId}&invite=${inviteToken}`;
 
 	// Email, if there's an address and mail is available. A failure here is
 	// reported but never fatal — the caller still has a working link.

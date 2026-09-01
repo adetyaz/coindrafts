@@ -2,6 +2,8 @@
 
 ### Version 1.0 · SoSoValue Buildathon
 
+> For the current technical architecture and 0G integration detail, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ---
 
 ## 1. Executive summary
@@ -139,14 +141,25 @@ Someone who wants to get into crypto but finds it overwhelming. The Gauntlet and
 | ---------- | ----------------------------------------------- | --------------------------------- |
 | Framework  | SvelteKit + TypeScript                          | SSR + API routes in one repo      |
 | Styling    | Tailwind CSS                                    | Utility-first                     |
-| Database   | Neon (serverless Postgres)                      | Free tier, scales to zero         |
+| Database   | Postgres (Supabase)                             | Migrated off Neon after repeated compute-quota exhaustion |
 | ORM        | Drizzle ORM                                     | Type-safe, lightweight            |
 | Auth       | Reown AppKit (EVM + Solana)                     | SIWE + ed25519 wallet signature   |
 | Cache      | In-memory Map (Wave 1) → Upstash Redis (Wave 2) |                                   |
-| AI         | Groq API (llama-3.3-70b-versatile)              | Sub-second breakdown generation   |
-| Data       | SoSoValue API                                   | Tokens, sectors, ETF, news        |
+| AI         | **0G Compute Router** (testnet), Groq fallback  | Mentor, breakdown, Draft Agent, Gauntlet — see below |
+| Data       | SoSoValue API + Binance batch pricing           | Tokens, sectors, ETF, news, live prices |
 | Execution  | SoDEX API (Wave 2+)                             | On-chain price feeds, prize pools |
 | Deployment | Vercel + adapter-vercel                         | One-click CI/CD                   |
+
+### 0G Integration
+
+The AI backend is pluggable (`src/lib/server/aiCompute.ts`) — with `USE_0G_COMPUTE=true`, every AI call routes through the **0G Compute Router** (testnet, model `qwen2.5-omni`) instead of Groq, using an identical OpenAI-shaped request so no call site needs to know which backend answered. Four features run on it:
+
+- **AI Mentor** — live chat grounded in real-time sector/token/news data.
+- **Post-match AI breakdown** — a short analysis of what drove the result.
+- **AI Draft Agent** — picks tokens on request; every use logs a receipt (provider address, request id, billing) shown in the UI as "✓ verified on 0G."
+- **Daily Gauntlet quiz** — questions generated fresh each day instead of a static bank.
+
+0G Storage integration (a permanent, independently-verifiable record of each day's generated quiz content) is wired up server-side and ready to run — pending one package install.
 
 ---
 
@@ -244,13 +257,42 @@ Winner       = player with higher lineup score
 
 ## Development
 
+Requires a `.env` file with:
+
+```sh
+# Database
+DATABASE_URL=              # Postgres connection string (Supabase or any Postgres works)
+
+# SoSoValue API
+SOSOVALUE_API_KEY=
+SOSOVALUE_BASE_URL=https://openapi.sosovalue.com/openapi/v1
+
+# Auth
+SESSION_SECRET=            # any long random string — signs session cookies
+
+# AI — Groq (default fallback)
+GROQ_API_KEY=
+
+# AI — 0G Compute Router (set USE_0G_COMPUTE=true to use this instead of Groq)
+USE_0G_COMPUTE=true
+ZG_COMPUTE_API_KEY=        # from the 0G Compute dashboard (pc.testnet.0g.ai)
+ZG_COMPUTE_BASE_URL=https://router-api-testnet.integratenetwork.work/v1
+ZG_COMPUTE_MODEL=qwen2.5-omni
+
+# Reown (wallet connect)
+PUBLIC_REOWN_PROJECT_ID=
+```
+
+Then:
+
 ```sh
 npm install
+npm run db:push   # applies the schema to your database
 npm run dev
 ```
 
 _CoinDraft · PRD v1.0 · SoSoValue Buildathon · May 2026_
-_Solo builder · SvelteKit + Drizzle + Neon + Groq + Reown AppKit_
+_Solo builder · SvelteKit + Drizzle + Postgres + 0G Compute + Reown AppKit_
 
 ## Building
 

@@ -7,182 +7,131 @@
 		{ label: 'Wildcard', desc: 'any token allowed', color: 'var(--color-sector-wildcard)' }
 	];
 
-	const WAVES = [
+	const FLOW = [
+		{ step: 'Connect a wallet', desc: 'Sign a message to prove it\'s yours. No email, no password.' },
+		{ step: 'See live market data', desc: 'Sector moves and token prices, pulled fresh, no manual updates.' },
+		{ step: 'Draft 5 tokens', desc: 'One per sector. Prices lock the moment you submit.' },
+		{ step: 'Get matched', desc: '1v1, a tournament bracket, or a wager — same draft either way.' },
+		{ step: 'Watch the race', desc: 'A live chart tracks every pick until time runs out.' },
+		{ step: 'Contest settles itself', desc: 'No one has to click resolve — it happens on its own, checked either by a scheduled sweep or the next time anyone loads the site.' },
+		{ step: 'Earn XP, badges, and quiz rewards', desc: 'Some badges are on-chain — you claim those yourself, from your own wallet.' }
+	];
+
+	const BUILT = [
 		{
-			id: 'wave1',
-			title: 'Wave 1 — Core Loop',
+			id: 'core-loop',
+			title: 'Core loop',
 			sub: 'Connect, draft, resolve, learn why.',
 			features: [
-				{
-					name: 'Wallet-only auth',
-					desc: 'Reown AppKit — SIWE for EVM, ed25519 signature verification for Solana. Session cookie, no password anywhere.',
-					status: 'done'
-				},
-				{
-					name: 'Live market context',
-					desc: 'Sector performance and ETF whale-flow alerts on the dashboard, server-cached from SoSoValue.',
-					status: 'done'
-				},
-				{
-					name: '5-token draft',
-					desc: 'Entry prices captured at the moment a lineup locks.',
-					status: 'done'
-				},
-				{
-					name: 'Contest resolution',
-					desc: 'Scores computed against real price movement between entry and resolution.',
-					status: 'done'
-				},
-				{
-					name: 'AI result breakdown',
-					desc: 'A short Groq-generated explanation of what actually drove the outcome.',
-					status: 'done'
-				}
+				{ name: 'Wallet-only login', desc: 'Works with EVM or Solana wallets. No password, ever.' },
+				{ name: 'Live market data', desc: 'Sector performance and whale-flow alerts on the dashboard.' },
+				{ name: '5-token draft', desc: 'Prices lock the instant you submit your lineup.' },
+				{ name: 'Self-resolving contests', desc: 'Scores itself against real price movement — never settles early, never guesses a missing price.' },
+				{ name: 'Live race view', desc: 'Every token in a match gets its own color on the chart, so picks never blur together.' }
 			]
 		},
 		{
-			id: 'wave2',
-			title: 'Wave 2 — Multiplayer',
-			sub: 'Real opponents, real formats, help while you draft.',
+			id: 'compete',
+			title: 'Compete',
+			sub: 'Real opponents, real formats, real stakes.',
 			features: [
-				{
-					name: 'Matchmaking',
-					desc: 'Queued 1v1 matching, real opponents only — no bot fallback. Queue is durable across server restarts.',
-					status: 'done'
-				},
-				{
-					name: 'Multiplayer lobbies',
-					desc: '3+ players per contest — fixed-size (starts on fill) or open (resolves on a timer) formats.',
-					status: 'done'
-				},
-				{
-					name: 'Weekly contests',
-					desc: 'A 7-day format alongside daily, paying 2× XP, selectable at contest creation.',
-					status: 'done'
-				},
-				{
-					name: 'Private leagues',
-					desc: 'Create a league, share a 6-character invite code, standings update automatically.',
-					status: 'done'
-				},
-				{
-					name: 'Daily Gauntlet',
-					desc: 'One quiz question a day, generated from live market data, correct answers earn XP + a sector boost.',
-					status: 'done'
-				},
-				{
-					name: 'AI Mentor',
-					desc: 'Live chat grounded in real-time sector/token/news data — draft help before the fact, not just explanation after.',
-					status: 'done'
-				},
-				{
-					name: 'Global leaderboard',
-					desc: 'Top-ranked players by total XP, medals for the top 3.',
-					status: 'done'
-				}
+				{ name: 'Matchmaking', desc: 'Queued 1v1 against real players only — never a bot.' },
+				{ name: 'Tournaments', desc: 'Public or invite-only. Brackets, a closing time, a minimum player count.' },
+				{ name: 'Wager mode', desc: 'Both players pick a stake; it settles at whichever is lower, so raising never costs you more than your own number.' },
+				{ name: 'Weekly contests', desc: 'A slower 7-day format that pays double XP.' },
+				{ name: 'Private leagues', desc: 'Create one, share a code, standings update on their own.' },
+				{ name: 'Leaderboard', desc: 'Ranked by total XP, top 3 get a medal.' }
 			]
 		},
 		{
-			id: 'wave3',
-			title: 'Wave 3 — Engagement',
+			id: 'learn',
+			title: 'Learn',
+			sub: 'AI that sees the same live data you do.',
+			features: [
+				{ name: 'AI Mentor', desc: 'Ask it a question before you draft — it answers from live data, not guesses.' },
+				{ name: 'AI Draft Agent', desc: 'Fills a slot or your whole lineup for an XP fee. Picks vary between players so two opponents don\'t get the same answer.' },
+				{ name: 'AI match summary', desc: 'A short explanation of what actually happened after every game.' },
+				{ name: 'Daily Gauntlet', desc: 'One AI-written question a day — sometimes about the market, sometimes a vocab term.' },
+				{ name: 'Word of the Day', desc: 'A crypto term + quiz on the Knowledge Base page, pulled from the same question bank the Gauntlet uses.' }
+			]
+		},
+		{
+			id: 'engagement',
+			title: 'Engagement',
 			sub: 'Everything on top of the core loop.',
 			features: [
-				{
-					name: 'Knowledge Base',
-					desc: 'Sector-tagged live news feed — reading one article a day earns XP and a boost, same mechanic as the Gauntlet.',
-					status: 'done'
-				},
-				{
-					name: 'Achievement badges',
-					desc: 'First Blood, On Fire / Unstoppable (streaks), Veteran / Champion (win milestones), League Founder.',
-					status: 'done'
-				},
-				{
-					name: 'Scrimmage',
-					desc: 'No-stakes contests against bots, separate XP tracking, clearly labeled throughout so it’s never confused with a real result.',
-					status: 'done'
-				},
-				{
-					name: 'Shareable result cards',
-					desc: 'Auto-generated cards for X/Twitter after a real (non-Scrimmage) win or loss.',
-					status: 'done'
-				},
-				{
-					name: 'Self-generating Gauntlet',
-					desc: 'Daily questions built from live token/sector data, not a static bank — no manual seeding required.',
-					status: 'done'
-				},
-				{
-					name: 'Real-money prize pools',
-					desc: 'League entry fees with a 70/20/10 payout split.',
-					status: 'deferred'
-				},
-				{
-					name: 'Responsible-play controls',
-					desc: 'Daily contest caps, loss-streak cooldowns, risk disclaimers — planned alongside real-money pools.',
-					status: 'deferred'
-				}
+				{ name: 'Scrimmage', desc: 'Practice against a real bot lineup — no stakes, tracked separately.' },
+				{ name: 'Badges', desc: 'Earned automatically for streaks, wins, and milestones.' },
+				{ name: 'Share cards', desc: 'A ready-to-post image after a real win or loss.' }
 			]
 		}
+	];
+
+	const ZG_INTEGRATION = [
+		{
+			layer: '0G Compute — runs the AI',
+			status: 'Live · testnet',
+			desc: 'Every AI feature — Mentor, match summaries, the Draft Agent, and the daily quiz — can run on 0G instead of a normal AI provider, checked with a simple on/off switch. Each AI Draft Agent use leaves a receipt you can verify.'
+		},
+		{
+			layer: '0G Storage — keeps a permanent copy',
+			status: 'Live · testnet',
+			desc: 'The AI-written quiz questions are saved permanently on 0G, not just in our own database — confirmed with a real, checkable upload.'
+		},
+		{
+			layer: '0G Chain — holds the badges',
+			status: 'Live · testnet',
+			desc: 'Achievement badges live on 0G as digital collectibles you claim yourself, from your own wallet — not something we hand you. New badge types can be added any time without touching the contract.'
+		}
+	];
+
+	const NEXT = [
+		{ name: 'Move to 0G mainnet', desc: 'Everything above works on 0G\'s test network today. Mainnet is the same setup, real network.' },
+		{ name: 'Real-money wagers', desc: 'Wagers work end to end right now, using in-game points. Real money is the next step, on the same system.' },
+		{ name: 'More badges', desc: 'Four exist today. Adding more doesn\'t need new code — just deciding what to add.' },
+		{ name: 'Fair tiebreaks in tournaments', desc: 'Right now a tie is broken arbitrarily. Needs a real rule.' },
+		{ name: 'Spending limits', desc: 'Daily caps and cooldowns, planned for once real money is involved.' }
 	];
 
 	const ARCH_ROWS = [
-		{
-			concern: 'Session auth',
-			approach:
-				'Signed cookie token (userId + timestamp), verified against a server-side secret — no session table lookup needed.'
-		},
-		{
-			concern: 'Contest resolution',
-			approach:
-				'Lazy — resolves the instant anyone loads a result page — plus a daily cron sweep as a catch-all for contests nobody ever checks.'
-		},
-		{
-			concern: 'Matchmaking queue',
-			approach: 'Persisted in Postgres, not in-memory — survives serverless cold starts and redeploys.'
-		},
-		{
-			concern: 'Price data',
-			approach: 'Live snapshots at draft-lock and resolution time; sector/token feeds cached server-side on short TTLs.'
-		},
-		{
-			concern: 'Theming',
-			approach:
-				'CSS custom-property tokens defined once in layout.css — a single light-only palette, no dark variant.'
-		}
+		{ concern: 'Login', approach: 'A signed cookie that can\'t be faked or edited. Expires after 7 days automatically.' },
+		{ concern: 'AI', approach: 'One switch decides whether 0G or a backup provider answers — the rest of the app never knows the difference.' },
+		{ concern: 'Contest settling', approach: 'Checked automatically in the background, and again on the real end time — never early, never with a missing price.' },
+		{ concern: 'Matchmaking', approach: 'Saved to the database, not memory — a server restart never loses your place in the queue.' },
+		{ concern: 'Prices', approach: 'One request covers the whole token list, not one request per token.' },
+		{ concern: 'Badges', approach: 'We sign off that you earned it; you mint it yourself. We can never mint it for you.' },
+		{ concern: 'Look & feel', approach: 'One shared style file — change a color once, it updates everywhere.' }
 	];
 
 	const STACK_ROWS = [
-		{ layer: 'Framework', choice: 'SvelteKit, client-rendered' },
-		{ layer: 'Styling', choice: 'Tailwind v4, CSS-first @theme token system' },
-		{ layer: 'Database', choice: 'Postgres (Neon), Drizzle ORM' },
-		{ layer: 'Auth', choice: 'Reown AppKit — SIWE (EVM), ed25519 (Solana)' },
-		{ layer: 'Market data', choice: 'SoSoValue API' },
-		{ layer: 'AI', choice: 'Groq (Llama 3.3 70B) — result breakdowns, Mentor chat' },
-		{ layer: 'Hosting', choice: 'Vercel, with scheduled cron sweeps' }
+		{ layer: 'Framework', choice: 'SvelteKit' },
+		{ layer: 'Styling', choice: 'Tailwind v4' },
+		{ layer: 'Database', choice: 'Postgres (Supabase)' },
+		{ layer: 'Login', choice: 'Reown AppKit — EVM + Solana wallets' },
+		{ layer: 'AI', choice: '0G Compute (primary), Groq (backup)' },
+		{ layer: 'On-chain badges', choice: '0G Chain' },
+		{ layer: 'Permanent records', choice: '0G Storage' },
+		{ layer: 'Market data', choice: 'SoSoValue + Binance' },
+		{ layer: 'Hosting', choice: 'Vercel' }
 	];
 
 	const LIMITATIONS = [
-		{
-			name: 'On-chain pricing (SoDEX)',
-			desc: "Price feed currently resolves through SoSoValue's shared data backend. SoDEX's separate on-chain trading API needs its own wallet-signed authentication that isn't wired up yet."
-		},
-		{
-			name: 'League championship badges',
-			desc: 'Not yet built — there’s no season-end resolution mechanic to determine a champion.'
-		},
-		{
-			name: 'Mobile',
-			desc: 'Responsive down to 375px, code-audited; not yet verified against every physical device.'
-		}
+		{ name: 'Wagers use points, not money', desc: 'Fully working, just not real cash yet.' },
+		{ name: 'Badge claiming needs an EVM wallet', desc: 'Solana-only accounts can\'t claim one yet.' },
+		{ name: 'Tournament ties', desc: 'Broken arbitrarily for now.' },
+		{ name: 'Mobile', desc: 'Built to work down to small screens, not yet checked on every real device.' }
 	];
 
 	const NAV = [
 		{ label: 'Overview', href: '#overview' },
 		{ label: 'Sectors', href: '#sectors' },
-		{ label: 'Core Loop', href: '#wave1' },
-		{ label: 'Multiplayer', href: '#wave2' },
-		{ label: 'Engagement', href: '#wave3' },
+		{ label: 'How It Works', href: '#flow' },
+		{ label: 'Core Loop', href: '#core-loop' },
+		{ label: 'Compete', href: '#compete' },
+		{ label: 'Learn', href: '#learn' },
+		{ label: 'Engagement', href: '#engagement' },
+		{ label: '0G Integration', href: '#0g' },
+		{ label: "What's Next", href: '#next' },
 		{ label: 'Architecture', href: '#architecture' },
 		{ label: 'Tech Stack', href: '#stack' },
 		{ label: 'Known Limitations', href: '#limitations' }
@@ -211,9 +160,9 @@
 				CoinDraft, end to end
 			</h1>
 			<p class="mt-2 max-w-xl text-[15px] text-text-secondary">
-				A Solana-native fantasy-sports game for crypto: draft a 5-token lineup, compete against real price
-				movement, climb XP and league rankings. This is the full reference — for a walkthrough of the app
-				itself, see the <a href="/guide" class="text-primary hover:underline">How to Use Guide</a>.
+				Connect a wallet, draft 5 tokens, compete against real price moves, earn XP and badges — some of
+				it running on 0G. This page is the full reference; for a walkthrough of the app itself see the
+				<a href="/guide" class="text-primary hover:underline">How to Use Guide</a>.
 			</p>
 		</div>
 
@@ -228,24 +177,17 @@
 				</div>
 				<div class="rounded-[20px] border border-border bg-surface p-4">
 					<span class="block font-mono text-2xl font-bold text-text">3</span>
-					<span class="text-[11px] font-bold tracking-wide text-text-muted uppercase">Waves shipped</span>
+					<span class="text-[11px] font-bold tracking-wide text-text-muted uppercase">0G layers used</span>
 				</div>
 				<div class="rounded-[20px] border border-border bg-surface p-4">
 					<span class="block font-mono text-2xl font-bold text-text">3+</span>
 					<span class="text-[11px] font-bold tracking-wide text-text-muted uppercase">Players/lobby</span>
 				</div>
 				<div class="rounded-[20px] border border-border bg-surface p-4">
-					<span class="block font-mono text-2xl font-bold text-text">6</span>
-					<span class="text-[11px] font-bold tracking-wide text-text-muted uppercase">Badges</span>
+					<span class="block font-mono text-2xl font-bold text-text">4</span>
+					<span class="text-[11px] font-bold tracking-wide text-text-muted uppercase">On-chain badges</span>
 				</div>
 			</div>
-
-			<p class="mt-4 max-w-2xl text-sm text-text-secondary">
-				Users connect a Solana or EVM wallet, sign a nonce to prove ownership, and land on a dashboard fed by
-				live market data. From there: draft a lineup, get matched (1v1, or a 3+ player lobby), and let the
-				contest resolve itself against real price movement — no manual intervention required anywhere in the
-				loop.
-			</p>
 		</section>
 
 		<section id="sectors" class="scroll-mt-16">
@@ -263,12 +205,28 @@
 			</div>
 		</section>
 
-		{#each WAVES as wave (wave.id)}
-			<section id={wave.id} class="scroll-mt-16">
-				<h2 class="text-xl font-black text-text">{wave.title}</h2>
-				<p class="mt-1 mb-4 text-sm text-text-muted">{wave.sub}</p>
+		<section id="flow" class="scroll-mt-16">
+			<h2 class="text-xl font-black text-text">How it works</h2>
+			<p class="mt-1 mb-4 text-sm text-text-muted">Start to finish, in order.</p>
+			<div class="flex flex-col gap-2.5">
+				{#each FLOW as f, i (f.step)}
+					<div class="flex items-start gap-3 rounded-[20px] border border-border bg-surface px-4 py-3.5">
+						<span class="mt-0.5 shrink-0 font-mono text-sm font-bold text-primary">{i + 1}</span>
+						<div>
+							<h4 class="text-[15px] font-bold text-text">{f.step}</h4>
+							<p class="mt-1 text-[13.5px] text-text-secondary">{f.desc}</p>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</section>
+
+		{#each BUILT as group (group.id)}
+			<section id={group.id} class="scroll-mt-16">
+				<h2 class="text-xl font-black text-text">{group.title}</h2>
+				<p class="mt-1 mb-4 text-sm text-text-muted">{group.sub}</p>
 				<div class="flex flex-col gap-2.5">
-					{#each wave.features as f (f.name)}
+					{#each group.features as f (f.name)}
 						<div
 							class="flex items-start justify-between gap-3 rounded-[20px] border border-border bg-surface px-4 py-3.5"
 						>
@@ -276,38 +234,63 @@
 								<h4 class="text-[15px] font-bold text-text">{f.name}</h4>
 								<p class="mt-1 text-[13.5px] text-text-secondary">{f.desc}</p>
 							</div>
-							<span
-								class="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase {f.status ===
-								'done'
-									? 'bg-positive/15 text-positive'
-									: 'bg-warning/15 text-warning'}"
-								>{f.status === 'done' ? 'Shipped' : 'Deferred'}</span
+							<span class="shrink-0 rounded-full bg-positive/15 px-2.5 py-1 text-[10px] font-bold tracking-wide text-positive uppercase"
+								>Shipped</span
 							>
 						</div>
 					{/each}
 				</div>
-				{#if wave.id === 'wave3'}
-					<div class="mt-3.5 rounded-r-lg border-l-[3px] border-primary bg-surface px-4 py-3 text-[13.5px] text-text-secondary">
-						<strong class="text-text">Why those two are deferred:</strong> both depend on real wallet-based
-						payment infrastructure that hasn't been built yet — they're intentionally scoped for after prize
-						pools have actual money moving through them, not left unfinished by oversight.
-					</div>
-				{/if}
 			</section>
 		{/each}
 
+		<section id="0g" class="scroll-mt-16">
+			<h2 class="text-xl font-black text-text">0G integration</h2>
+			<p class="mt-1 mb-4 text-sm text-text-muted">
+				Everything below was checked against the live network directly — not assumed from docs.
+			</p>
+			<div class="flex flex-col gap-2.5">
+				{#each ZG_INTEGRATION as z (z.layer)}
+					<div class="rounded-[20px] border border-border bg-surface px-4 py-3.5">
+						<div class="flex items-center justify-between gap-3">
+							<h4 class="text-[15px] font-bold text-text">{z.layer}</h4>
+							<span class="shrink-0 rounded-full bg-positive/15 px-2.5 py-1 text-[10px] font-bold tracking-wide text-positive uppercase"
+								>{z.status}</span
+							>
+						</div>
+						<p class="mt-1.5 text-[13.5px] text-text-secondary">{z.desc}</p>
+					</div>
+				{/each}
+			</div>
+		</section>
+
+		<section id="next" class="scroll-mt-16">
+			<h2 class="text-xl font-black text-text">What's next</h2>
+			<p class="mt-1 mb-4 text-sm text-text-muted">In order.</p>
+			<div class="flex flex-col gap-2.5">
+				{#each NEXT as n, i (n.name)}
+					<div class="flex items-start gap-3 rounded-[20px] border border-border bg-surface px-4 py-3.5">
+						<span class="mt-0.5 shrink-0 font-mono text-sm font-bold text-primary">{i + 1}</span>
+						<div>
+							<h4 class="text-[15px] font-bold text-text">{n.name}</h4>
+							<p class="mt-1 text-[13.5px] text-text-secondary">{n.desc}</p>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</section>
+
 		<section id="architecture" class="scroll-mt-16">
-			<h2 class="text-xl font-black text-text">Architecture notes</h2>
-			<p class="mt-1 mb-4 text-sm text-text-muted">How the "resolves itself" part actually works.</p>
+			<h2 class="text-xl font-black text-text">Architecture</h2>
+			<p class="mt-1 mb-4 text-sm text-text-muted">How each piece actually behaves, in plain terms.</p>
 			<div class="overflow-x-auto rounded-[20px] border border-border">
 				<table class="w-full min-w-[480px] border-collapse text-[13.5px]">
 					<thead>
 						<tr class="bg-surface-raised">
 							<th class="px-3.5 py-2.5 text-left text-[10.5px] font-bold tracking-wide text-text-muted uppercase"
-								>Concern</th
+								>Part</th
 							>
 							<th class="px-3.5 py-2.5 text-left text-[10.5px] font-bold tracking-wide text-text-muted uppercase"
-								>Approach</th
+								>How it works</th
 							>
 						</tr>
 					</thead>

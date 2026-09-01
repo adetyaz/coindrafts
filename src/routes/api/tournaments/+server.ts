@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { tournaments, lobbies, lobbyParticipants, users } from '$lib/server/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { parseSessionToken } from '$lib/server/auth';
 
 const SECTORS = ['l1', 'l2', 'defi', 'meme', 'wildcard'];
@@ -34,14 +34,19 @@ export async function GET({ url, cookies }) {
 		})
 		.from(tournaments)
 		.leftJoin(users, eq(users.id, tournaments.createdBy))
-		.where(eq(tournaments.status, status));
+		// accessType filter is load-bearing, not redundant: two 'private' rows
+		// exist from the invite-flow testing pass and were leaking into this
+		// public list — this query used to only filter by status.
+		.where(and(eq(tournaments.status, status), eq(tournaments.accessType, 'public')));
 
 	return json(rows);
 }
 
-// POST /api/tournaments { name, contestType?, payoutStructure?, sectorRestriction?, groupSize? }
-// Public + free-to-play only — accessType/fundingMode aren't accepted from the
-// client yet, both stay hardcoded until the shared money mechanic exists.
+// POST /api/tournaments { name, contestType?, payoutStructure?, sectorRestriction?, groupSize?, accessType? }
+// fundingMode stays hardcoded to 'free' — that one's genuinely blocked on the
+// shared money mechanic. accessType isn't blocked on anything; private
+// tournaments just aren't listed and require an invite to join (see
+// /api/tournament/[id]/join), both already built.
 export async function POST({ request, cookies }) {
 	const token = cookies.get('session');
 	const parsed = token ? parseSessionToken(token) : null;
@@ -52,6 +57,7 @@ export async function POST({ request, cookies }) {
 	if (!name) return json({ error: 'A tournament name is required' }, { status: 400 });
 
 	const contestType = body.contestType === 'weekly' ? 'weekly' : 'daily';
+	const accessType = body.accessType === 'private' ? 'private' : 'public';
 	const payoutStructure = body.payoutStructure === 'top3_weighted' ? 'top3_weighted' : 'winner_take_all';
 	const sectorRestriction = SECTORS.includes(body.sectorRestriction) ? body.sectorRestriction : null;
 	const groupSize = Number.isInteger(body.groupSize) && body.groupSize >= 2 ? body.groupSize : 4;
@@ -62,7 +68,7 @@ export async function POST({ request, cookies }) {
 			name,
 			createdBy: parsed.userId,
 			contestType,
-			accessType: 'public',
+			accessType,
 			fundingMode: 'free',
 			payoutStructure,
 			sectorRestriction,

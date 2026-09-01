@@ -3,7 +3,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { contests, lineups, lineupPicks, users, priceSamples, stakes } from '$lib/server/schema';
 import { parseSessionToken } from '$lib/server/auth';
-import { getSnapshot, extractPrice } from '$lib/server/sosovalue';
+import { getSnapshot, extractPrice, getTokensWithPrices } from '$lib/server/sosovalue';
 
 // Don't re-sample more often than this. Two players watching the same game
 // would otherwise each write a full set of rows every poll.
@@ -18,17 +18,11 @@ import { getSnapshot, extractPrice } from '$lib/server/sosovalue';
 // expensive part, and it contributed to exhausting a compute quota.
 const SAMPLE_THROTTLE_MS = 6_000;
 
-// Contest, lineups, picks and usernames are all immutable once a game is live —
-// lineups are locked before the clock starts. Re-querying them every few
-// seconds, for every viewer, was pure waste.
-const STATIC_TTL_MS = 60_000;
-type StaticShape = {
-	at: number;
-	contest: typeof contests.$inferSelect;
-	sides: Map<string, { userId: string; name: string | null; picks: PickRow[] }>;
-};
-type PickRow = typeof lineupPicks.$inferSelect;
-const staticCache = new Map<string, StaticShape>();
+// NOTE: an in-memory cache for the immutable parts (contest, lineups, picks,
+// usernames — none of which change once a game is live) was started here and is
+// deliberately NOT in place. Left as a comment rather than dead code: it's a
+// real optimisation worth doing if this endpoint's load matters, but a
+// half-applied version that nothing uses is worse than none.
 
 // Live state for the game screen: both lineups, their locked entry prices, and
 // where each pick stands right now. The race is drawn from this.
@@ -58,6 +52,25 @@ export async function GET({ params, cookies }) {
 		return json({ error: 'Forbidden' }, { status: 403 });
 	}
 
+	// Priced from the same batch pool the draft screen and lineup lock use — one
+	// cached call, not up to 10 individual per-pick requests every single poll.
+	// That per-token burst was the actual cause of the race chart going blank:
+	// a rate-limited fetch used to silently fall back to "0% move" for that
+	// tick, and under sustained rate-limiting that's every tick, every pick —
+	// a real, drawn line that just never moves.
+	const priceByCurrency = new Map((await getTokensWithPrices()).map((t) => [t.currency_id, t.price]));
+	async function currentPriceFor(currencyId: string, fallback: number): Promise<number> {
+		const cached = priceByCurrency.get(currencyId);
+		if (cached != null && cached > 0) return cached;
+		// Rare fallback — a token the batch pool doesn't currently carry.
+		try {
+			const live = extractPrice(await getSnapshot(currencyId));
+			return live && Number.isFinite(live) && live > 0 ? live : fallback;
+		} catch {
+			return fallback;
+		}
+	}
+
 	async function sideFor(userId: string | null) {
 		if (!userId) return null;
 		const lineup = await db
@@ -76,20 +89,10 @@ export async function GET({ params, cookies }) {
 			.limit(1)
 			.then((rows) => rows[0]?.username ?? null);
 
-		// One snapshot per pick. Failures degrade to the entry price (0% move)
-		// rather than breaking the screen — the market layer rate-limits under
-		// load and a dropped tick shouldn't blank the race.
 		const enriched = await Promise.all(
 			picks.map(async (p) => {
 				const entry = Number(p.entryPrice ?? 0);
-				let current = entry;
-				try {
-					const snap = await getSnapshot(p.currencyId);
-					const live = extractPrice(snap);
-					if (live && Number.isFinite(live)) current = live;
-				} catch {
-					/* keep entry — treated as no movement */
-				}
+				const current = await currentPriceFor(p.currencyId, entry);
 				const pct = entry > 0 ? ((current - entry) / entry) * 100 : 0;
 				return {
 					sector: p.sector,

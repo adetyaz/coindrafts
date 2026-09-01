@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { contests, lineups, lineupPicks } from '$lib/server/schema';
 import { parseSessionToken } from '$lib/server/auth';
-import { getSnapshot, extractPrice } from '$lib/server/sosovalue';
+import { getSnapshot, extractPrice, getTokensWithPrices } from '$lib/server/sosovalue';
 import { pickScrimmageBot, draftBotLineup } from '$lib/server/botDraft';
 import { DEFAULT_DURATION_MINUTES } from '$lib/constants';
 
@@ -32,6 +32,13 @@ export async function POST({ params, request, cookies }) {
 	if (existingContest.userAId !== parsed.userId && existingContest.userBId !== parsed.userId) {
 		return json({ error: 'Forbidden' }, { status: 403 });
 	}
+	// Once the contest is live, a "re-lock" isn't a re-lock — it's a redraft
+	// mid-race, silently overwriting the entry prices scoring already keyed
+	// off. Re-locking while still 'open' (contest not started yet, or waiting
+	// on the opponent) is fine — nothing has been scored against it yet.
+	if (existingContest.status === 'live') {
+		return json({ error: 'This contest is already live — your lineup is locked in.' }, { status: 409 });
+	}
 
 	const existingLineup = await db
 		.select()
@@ -57,14 +64,28 @@ export async function POST({ params, request, cookies }) {
 		await db.delete(lineupPicks).where(eq(lineupPicks.lineupId, lineupId));
 	}
 
-	// Fetch all snapshots in parallel to avoid sequential rate-limit hammering
-	const snapshots = await Promise.all(
-		picks.map((p: { currencyId: unknown }) => getSnapshot(String(p.currencyId)).catch(() => null))
-	);
+	// Priced from the same batch pool the draft screen itself is built from —
+	// one cached call, not five parallel single-token requests. That per-token
+	// burst (here and in the bot path below) was the actual cause of entry
+	// prices silently landing on $0 under any rate-limit blip: extractPrice()
+	// treats a failed fetch as "$0", not "unknown", and a $0 entry gets
+	// filtered out of the race chart client-side, making it read as blank.
+	const priceByCurrency = new Map((await getTokensWithPrices()).map((t) => [t.currency_id, t.price]));
+	async function priceFor(currencyId: string): Promise<number> {
+		const cached = priceByCurrency.get(currencyId);
+		if (cached != null && cached > 0) return cached;
+		// Rare fallback — a token that's dropped out of the pool since the user
+		// drafted it. Single-token lookup is fine as a one-off, just not as a burst.
+		try {
+			return extractPrice(await getSnapshot(currencyId));
+		} catch {
+			return 0;
+		}
+	}
 
 	for (let i = 0; i < picks.length; i++) {
 		const pick = picks[i];
-		const entryPrice = extractPrice(snapshots[i]);
+		const entryPrice = await priceFor(String(pick.currencyId));
 		await db.insert(lineupPicks).values({
 			lineupId,
 			tokenSymbol: String(pick.symbol ?? '').toUpperCase(),
@@ -78,42 +99,39 @@ export async function POST({ params, request, cookies }) {
 		});
 	}
 
-	// Only set contest live when userA (the creator) submits
-	// userB submits into an already-live contest
-	if (existingContest.userAId === parsed.userId) {
-		// Duration comes from the contest itself, chosen before matching. This
-		// used to be `type === 'weekly' ? 7 : 1` days, which made any game
-		// shorter than a day impossible to express.
-		const durationMinutes = existingContest.durationMinutes ?? DEFAULT_DURATION_MINUTES;
-		const startAt = new Date();
-		const endAt = new Date(startAt.getTime() + durationMinutes * 60 * 1000);
-
-		// Scrimmage contests are created directly (never via matchmaking_queue),
-		// so bots-service never sees them. Assign a real bot opponent right
-		// here — same moment the human's entry prices are captured, so both
-		// sides reflect the same market moment. A failure here shouldn't block
-		// the human's own submission; the existing synthetic-score fallback at
-		// resolution time still covers it if this doesn't complete.
-		if (existingContest.isPaper && !existingContest.userBId) {
+	// Scrimmage contests are created directly (never via matchmaking_queue), so
+	// bots-service never sees them. Assign a real bot opponent right here, the
+	// moment the human submits — same instant the human's entry prices are
+	// captured, so both sides reflect the same market moment.
+	//
+	// This used to swallow a failure here and mark the contest live anyway, on
+	// the assumption that resolution had a fallback for a missing bot lineup.
+	// It doesn't — a missing userBId makes resolution skip scoring entirely and
+	// record the human as the loser of a game that never had an opponent. So
+	// this now retries once, and refuses to start the game at all rather than
+	// start it broken. Priced from `botPicks[i].price`, carried straight from
+	// draftBotLineup's own batch fetch — no separate per-token price burst here.
+	if (existingContest.isPaper && !existingContest.userBId) {
+		let botReady = false;
+		for (let attempt = 0; attempt < 2 && !botReady; attempt++) {
 			try {
 				const bot = pickScrimmageBot();
 				const botPicks = await draftBotLineup();
+				if (botPicks.length !== 5) throw new Error('Bot draft returned an incomplete lineup');
+
 				const [botLineup] = await db
 					.insert(lineups)
 					.values({ contestId, userId: bot.id, locked: true, finalScore: '0' })
 					.returning({ id: lineups.id });
 
-				const botSnapshots = await Promise.all(
-					botPicks.map((p) => getSnapshot(p.currencyId).catch(() => null))
-				);
-				for (let i = 0; i < botPicks.length; i++) {
-					const entryPrice = extractPrice(botSnapshots[i]);
+				for (const p of botPicks) {
+					const entryPrice = p.price ?? 0;
 					await db.insert(lineupPicks).values({
 						lineupId: botLineup.id,
-						tokenSymbol: botPicks[i].symbol.toUpperCase(),
-						tokenName: botPicks[i].name,
-						sector: botPicks[i].sector,
-						currencyId: botPicks[i].currencyId,
+						tokenSymbol: p.symbol.toUpperCase(),
+						tokenName: p.name,
+						sector: p.sector,
+						currencyId: p.currencyId,
 						entryPrice: String(entryPrice),
 						exitPrice: String(entryPrice),
 						pctChange: '0',
@@ -122,15 +140,57 @@ export async function POST({ params, request, cookies }) {
 				}
 
 				await db.update(contests).set({ userBId: bot.id }).where(eq(contests.id, contestId));
+				botReady = true;
 			} catch (e) {
-				console.error('[contest/lineup] Scrimmage bot draft failed, falling back to synthetic score:', e);
+				console.error(`[contest/lineup] Scrimmage bot draft failed (attempt ${attempt + 1}/2):`, e);
 			}
 		}
 
-		await db
-			.update(contests)
-			.set({ status: 'live', startAt, endAt })
-			.where(eq(contests.id, contestId));
+		if (!botReady) {
+			// The human's own lineup is already saved (locked:true, above) —
+			// retrying this same request will find it and just re-lock picks,
+			// so nothing is lost by bailing out here.
+			return json(
+				{ error: "Couldn't set up your Scrimmage opponent — please try locking your lineup again." },
+				{ status: 503 }
+			);
+		}
+	}
+
+	// Start the clock only once BOTH sides have actually locked a lineup — never
+	// on the first submission alone. It used to go live the instant userA (the
+	// creator) submitted, so userB's entire draft time was silently eaten by a
+	// timer they didn't know was already running, and a slow userB's game could
+	// resolve before they'd ever picked. Refetch first: the scrimmage block
+	// above may have just set userBId on this same request.
+	const contestNow = await db
+		.select()
+		.from(contests)
+		.where(eq(contests.id, contestId))
+		.limit(1)
+		.then((rows) => rows[0]!);
+
+	if (contestNow.status !== 'live') {
+		const otherUserId =
+			contestNow.userAId === parsed.userId ? contestNow.userBId : contestNow.userAId;
+		const otherLineupExists = otherUserId
+			? await db
+					.select({ id: lineups.id })
+					.from(lineups)
+					.where(and(eq(lineups.contestId, contestId), eq(lineups.userId, otherUserId)))
+					.limit(1)
+					.then((rows) => rows.length > 0)
+			: false;
+
+		if (otherLineupExists) {
+			const durationMinutes = contestNow.durationMinutes ?? DEFAULT_DURATION_MINUTES;
+			const startAt = new Date();
+			const endAt = new Date(startAt.getTime() + durationMinutes * 60 * 1000);
+			await db
+				.update(contests)
+				.set({ status: 'live', startAt, endAt })
+				.where(eq(contests.id, contestId));
+		}
 	}
 
 	return json({ ok: true, contestId, lineupId });

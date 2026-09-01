@@ -8,8 +8,9 @@
 	// Two things shape the implementation:
 	//  • Hover fires constantly while skimming a pool of 179 tokens, so the fetch
 	//    is delayed until the pointer settles, and the endpoint caches hard.
-	//  • It must never block drafting. Pointer-events are off, it dismisses on
-	//    leave, and it can't cover the Add button.
+	//  • It must never block drafting. It dismisses on leave, and it's positioned
+	//    beside the anchor card (never on top of it), so being clickable — needed
+	//    for the Stats/News tabs — still can't cover that card's own Add button.
 	import { onDestroy } from 'svelte';
 	import { Spring, prefersReducedMotion } from 'svelte/motion';
 	import { scale, fade } from 'svelte/transition';
@@ -33,8 +34,19 @@
 	let {
 		currencyId,
 		symbol,
-		anchor
-	}: { currencyId: string; symbol: string; anchor: DOMRect | null } = $props();
+		anchor,
+		onenter,
+		onleave
+	}: {
+		currencyId: string;
+		symbol: string;
+		anchor: DOMRect | null;
+		// Lets the draft page keep the overlay open while the pointer is over
+		// IT, not just the card — needed now that its tabs are clickable, since
+		// reaching them means crossing the gap between card and overlay.
+		onenter?: () => void;
+		onleave?: () => void;
+	} = $props();
 
 	const OPEN_DELAY_MS = 220;
 
@@ -132,12 +144,16 @@
 </script>
 
 {#if pos}
-	<!-- pointer-events-none is load-bearing: the overlay must never intercept a
-	     click meant for the card underneath it. -->
+	<!-- Interactive now that it has a clickable News tab — it was pointer-events-none
+	     before, which also silently made the tab itself unclickable. Safe because the
+	     overlay is positioned beside the anchor card (never on top of it, see `target`
+	     above), so it can't swallow a click meant for that card's own Add button. -->
 	<div
-		class="pointer-events-none fixed z-50"
+		class="fixed z-50"
 		style="left:{pos.x}px; top:{pos.y}px; width:{W}px"
 		role="tooltip"
+		onmouseenter={onenter}
+		onmouseleave={onleave}
 	>
 		<div
 			in:scale={{
@@ -180,14 +196,16 @@
 			{:else if detail}
 				<div class="flex gap-1 border-b border-border px-3 pt-2">
 					{#each [{ id: 'stats' as const, label: 'Stats' }, { id: 'news' as const, label: `News${detail.news.length ? ` (${detail.news.length})` : ''}` }] as t (t.id)}
-						<span
-							class="rounded-t-lg px-2.5 py-1.5 text-[11px] font-bold"
+						<button
+							type="button"
+							onclick={() => (tab = t.id)}
+							class="cursor-pointer rounded-t-lg px-2.5 py-1.5 text-[11px] font-bold"
 							style={tab === t.id
 								? 'color:var(--color-text);border-bottom:2px solid var(--color-primary)'
 								: 'color:var(--color-text-muted)'}
 						>
 							{t.label}
-						</span>
+						</button>
 					{/each}
 				</div>
 
@@ -202,19 +220,16 @@
 							</div>
 						{/each}
 					</div>
-				{/if}
-
-				{#if detail.news.length > 0}
-					<div class="border-t border-border px-4 py-3">
-						<div class="mb-2 text-[9.5px] font-extrabold tracking-[0.08em] text-text-muted uppercase">
-							Recent headlines
-						</div>
+				{:else if detail.news.length > 0}
+					<div class="px-4 py-3">
 						<div class="flex flex-col gap-2">
 							{#each detail.news.slice(0, 3) as n (n.title)}
 								<p class="text-[11.5px] leading-snug text-text-secondary">{n.title}</p>
 							{/each}
 						</div>
 					</div>
+				{:else}
+					<p class="px-4 py-6 text-center text-[11.5px] text-text-muted">No recent news for this token.</p>
 				{/if}
 			{/if}
 		</div>

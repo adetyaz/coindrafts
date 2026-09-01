@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { contests } from '$lib/server/schema';
-import { eq, or } from 'drizzle-orm';
+import { contests, lineups } from '$lib/server/schema';
+import { and, eq, or } from 'drizzle-orm';
 import { parseSessionToken } from '$lib/server/auth';
 import { DEFAULT_DURATION_MINUTES, normalizeDuration } from '$lib/constants';
 
@@ -17,7 +17,16 @@ export async function GET({ cookies }) {
 		.from(contests)
 		.where(or(eq(contests.userAId, parsed.userId), eq(contests.userBId, parsed.userId)));
 
-	return json(userContests);
+	// So the dashboard can tell "already locked, waiting/racing" apart from
+	// "haven't drafted yet" — without it, every non-resolved contest looked
+	// the same and linked back to /draft even once a lineup was locked.
+	const myLockedLineups = await db
+		.select({ contestId: lineups.contestId })
+		.from(lineups)
+		.where(and(eq(lineups.userId, parsed.userId), eq(lineups.locked, true)));
+	const lockedContestIds = new Set(myLockedLineups.map((l) => l.contestId));
+
+	return json(userContests.map((c) => ({ ...c, myLineupLocked: lockedContestIds.has(c.id) })));
 }
 
 export async function POST({ request, cookies }) {

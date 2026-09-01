@@ -3,7 +3,6 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Gauntlet from '$lib/components/Gauntlet.svelte';
-	import TermOfDay from '$lib/components/TermOfDay.svelte';
 	import TokenIcon from '$lib/components/TokenIcon.svelte';
 	import StatBlock from '$lib/components/ui/StatBlock.svelte';
 	import Bar from '$lib/components/ui/Bar.svelte';
@@ -159,8 +158,8 @@
 </script>
 
 <div class="mx-auto max-w-[1360px] px-7 pt-7 pb-18">
-	<div class="mb-4.5 flex flex-wrap gap-4.5">
-		<div class="hero-coral dot-grid flex min-w-0 flex-[1_1_520px] flex-col justify-between gap-7 rounded-[24px] p-9">
+	<div class="mb-4.5 flex flex-wrap items-start gap-4.5">
+		<div class="hero-coral dot-grid flex min-w-0 flex-[1_1_520px] flex-col gap-7 rounded-[24px] p-9">
 			<div class="flex flex-wrap items-start justify-between gap-4">
 				<span class="rounded-full bg-text px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary uppercase">
 					{resolvedContests.length > 0 ? `${winRate}% win rate` : 'New player'}
@@ -190,12 +189,6 @@
 				</button>
 				<button
 					class="cursor-pointer rounded-full border-[1.5px] border-text bg-transparent px-[26px] py-3.5 text-sm font-bold text-text"
-					onclick={() => goto('/lobby')}
-				>
-					Join Multiplayer
-				</button>
-				<button
-					class="cursor-pointer rounded-full border-[1.5px] border-text bg-transparent px-[26px] py-3.5 text-sm font-bold text-text"
 					onclick={() => goto('/tournament')}
 				>
 					Tournaments
@@ -221,8 +214,6 @@
 		</div>
 
 		<div class="flex min-w-0 flex-[1_1_280px] flex-col gap-3.5">
-			<Gauntlet />
-			<TermOfDay />
 			<div class="grid grid-cols-2 gap-4.5 rounded-[20px] border border-border bg-surface p-[22px]">
 				<StatBlock value={resolvedContests.length > 0 ? `${winRate}%` : '—'} label="Win rate" color="var(--color-mint-ink)" />
 				<StatBlock value={String(resolvedContests.length)} label="Resolved" />
@@ -231,6 +222,9 @@
 	</div>
 
 	<div class="mb-4.5 flex flex-wrap gap-4.5">
+		<div class="min-w-0 flex-[1_1_340px]">
+			<Gauntlet />
+		</div>
 		<div class="min-w-0 flex-[1_1_340px] rounded-[20px] border border-border bg-surface p-[22px]">
 			<div class="mb-4.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
 				Sector performance
@@ -449,6 +443,12 @@
 								href={`/contest/result?contestId=${c.id}`}
 								class="rounded-full bg-primary-muted px-3.5 py-1.5 text-xs font-bold text-primary-ink no-underline"
 								>View result</a
+							>
+						{:else if c.myLineupLocked}
+							<a
+								href={`/game/${c.id}`}
+								class="rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-text no-underline"
+								>{c.status === 'live' ? 'Watch race' : 'Waiting for opponent'}</a
 							>
 						{:else}
 							<a

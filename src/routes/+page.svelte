@@ -135,7 +135,7 @@
 			title: 'Compete',
 			links: [
 				{ label: 'Leaderboard', href: '/leaderboard' },
-				{ label: 'Multiplayer', href: '/lobby' },
+				{ label: 'Tournaments', href: '/tournament' },
 				{ label: 'Find a match', href: '/matchmaking' },
 				{ label: 'AI Mentor', href: '/mentor' }
 			]

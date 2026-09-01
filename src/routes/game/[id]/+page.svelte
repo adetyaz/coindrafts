@@ -38,7 +38,7 @@
 	const contestId = page.params.id;
 
 	let live = $state<Live | null>(null);
-	let phase = $state<'loading' | 'start' | 'racing' | 'error'>('loading');
+	let phase = $state<'loading' | 'waiting' | 'start' | 'racing' | 'error'>('loading');
 	let errorMessage = $state('');
 	let msRemaining = $state(0);
 
@@ -50,8 +50,6 @@
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let tickTimer: ReturnType<typeof setInterval> | null = null;
 
-	const allPicks = $derived([...(live?.me?.picks ?? []), ...(live?.opponent?.picks ?? [])]);
-
 	const clock = $derived.by(() => {
 		const s = Math.max(0, Math.floor(msRemaining / 1000));
 		const h = Math.floor(s / 3600);
@@ -60,14 +58,6 @@
 		return h > 0
 			? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 			: `${m}:${String(sec).padStart(2, '0')}`;
-	});
-
-	const elapsedFraction = $derived.by(() => {
-		if (!live?.startAt || !live?.endAt) return 0;
-		const start = new Date(live.startAt).getTime();
-		const end = new Date(live.endAt).getTime();
-		if (end <= start) return 1;
-		return Math.min(1, Math.max(0, (Date.now() - start) / (end - start)));
 	});
 
 	function keyFor(side: 'me' | 'opp', symbol: string) {
@@ -119,7 +109,14 @@
 
 			series = [...rebuilt, { at: Date.now(), vals: latest }].slice(-300);
 
-			if (phase === 'loading') phase = 'start';
+			// Contest stays 'open' (no clock yet) until both sides have locked a
+			// lineup — see the lineup endpoint. Keep polling in that state rather
+			// than showing a countdown/race for an opponent who hasn't drafted.
+			if (data.status === 'open') {
+				phase = 'waiting';
+			} else if (phase === 'loading' || phase === 'waiting') {
+				phase = 'start';
+			}
 		} catch (e) {
 			if (phase === 'loading') {
 				phase = 'error';
@@ -160,13 +157,39 @@
 		}))
 	]);
 
+	// One distinct color per TOKEN, not per sector — sector color collides the
+	// moment both sides draft the same sector (both pick an L1, say), making
+	// individual coins impossible to tell apart in a 10-line race. Assigned by
+	// each symbol's position in the sorted unique list, so it's deterministic
+	// across polls (same set of symbols always sorts the same way) and
+	// collision-free up to 10 palette entries — the max a race ever has (5
+	// picks × 2 sides).
+	const RACE_PALETTE = [
+		'#F78E79',
+		'#5FA8D8',
+		'#68C2A8',
+		'#F7C978',
+		'#B57EDC',
+		'#E8709A',
+		'#7EC8E3',
+		'#A3D977',
+		'#E2555A',
+		'#4FBDBD'
+	];
+	const symbolColor = $derived.by(() => {
+		const uniqueSymbols = [...new Set(racers.map((r) => r.pick.symbol.toUpperCase()))].sort();
+		const map = new Map<string, string>();
+		uniqueSymbols.forEach((sym, i) => map.set(sym, RACE_PALETTE[i % RACE_PALETTE.length]));
+		return map;
+	});
+
 	// Shapes the race data for the chart component.
 	const chartRacers = $derived(
 		racers.map((r) => ({
 			key: r.key,
 			label: r.pick.symbol.toUpperCase(),
 			sector: r.pick.sector,
-			colour: sectorTheme(r.pick.sector).color,
+			colour: symbolColor.get(r.pick.symbol.toUpperCase()) ?? sectorTheme(r.pick.sector).color,
 			mine: r.mine
 		}))
 	);
@@ -182,6 +205,16 @@
 <div class="mx-auto max-w-[1100px] px-7 pt-7 pb-18">
 	{#if phase === 'loading'}
 		<div class="h-64 animate-pulse rounded-[24px] bg-surface-alt"></div>
+	{:else if phase === 'waiting'}
+		<div class="rounded-[24px] border border-border bg-surface p-11 text-center max-sm:p-6">
+			<div class="anim-blink mx-auto h-2.5 w-2.5 rounded-full bg-primary"></div>
+			<div class="mt-4 text-[28px] font-black tracking-[-0.03em]">Waiting for your opponent</div>
+			<p class="mt-3 text-[15px] text-text-muted">
+				Your lineup is locked in. The clock hasn't started — it only begins once
+				{live?.opponent?.name ?? 'they'} lock theirs too, so neither of you loses draft time waiting
+				on the other.
+			</p>
+		</div>
 	{:else if phase === 'error'}
 		<div class="rounded-[24px] border border-border bg-surface p-11 text-center">
 			<div class="text-[28px] font-black tracking-[-0.03em]">Can't load this game</div>

@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { SECTORS } from '$lib/constants';
 	import { sectorTheme } from '$lib/sectorTheme';
+	import { classifySector } from '$lib/sectors';
 	import Toast from '$lib/components/Toast.svelte';
 	import DraftAgent from '$lib/components/DraftAgent.svelte';
 	import TokenIcon from '$lib/components/TokenIcon.svelte';
@@ -35,12 +36,37 @@
 	// overlay can place itself beside it and flip near the viewport edge.
 	let hoverToken = $state<{ currencyId: string; symbol: string } | null>(null);
 	let hoverRect = $state<DOMRect | null>(null);
+	// Now that the overlay is clickable (Stats/News tabs), leaving the card
+	// can't close it immediately — the mouse has to cross the gap to the
+	// overlay itself first. Close is delayed and cancellable so hovering
+	// either the card OR the overlay keeps it open; it only actually closes
+	// once the pointer has left both.
+	let closeTimer: ReturnType<typeof setTimeout> | null = null;
 
 	function openHover(e: MouseEvent, currencyId: string, symbol: string) {
+		if (closeTimer) {
+			clearTimeout(closeTimer);
+			closeTimer = null;
+		}
 		hoverRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		hoverToken = { currencyId, symbol };
 	}
+	function scheduleCloseHover() {
+		if (closeTimer) clearTimeout(closeTimer);
+		closeTimer = setTimeout(() => {
+			hoverToken = null;
+			hoverRect = null;
+			closeTimer = null;
+		}, 150);
+	}
+	function cancelCloseHover() {
+		if (closeTimer) {
+			clearTimeout(closeTimer);
+			closeTimer = null;
+		}
+	}
 	function closeHover() {
+		cancelCloseHover();
 		hoverToken = null;
 		hoverRect = null;
 	}
@@ -110,6 +136,10 @@
 				const match = tokens.find((t) => t.currency_id === highlightId);
 				if (match?.symbol) {
 					search = match.symbol;
+					// The pool is now sector-filtered by activeSector — without this,
+					// a highlighted token outside the default L1 tab would search for
+					// nothing found.
+					activeSector = tokenSector(match);
 					queueMicrotask(() =>
 						document.getElementById('token-pool')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 					);
@@ -136,10 +166,17 @@
 	// ── Derived ────────────────────────────────────────────────────────
 	const tokenMap = $derived(new Map(tokens.map((t) => [t.currency_id, t])));
 
+	function tokenSector(t: { symbol?: string }): string {
+		return classifySector([t.symbol ?? '']);
+	}
+
+	// Only Wildcard accepts any chain — every other slot only shows/accepts
+	// tokens actually classified into that sector.
 	const filteredTokens = $derived.by(() => {
 		const q = search.trim().toLowerCase();
-		if (!q) return tokens.slice(0, 50);
-		return tokens
+		const inSector = activeSector === 'wildcard' ? tokens : tokens.filter((t) => tokenSector(t) === activeSector);
+		if (!q) return inSector.slice(0, 50);
+		return inSector
 			.filter((t) => t.symbol?.toLowerCase().includes(q) || t.name?.toLowerCase().includes(q))
 			.slice(0, 50);
 	});
@@ -186,6 +223,12 @@
 		const sym = (token.symbol ?? token.currency_id).toUpperCase();
 		if (isInLineup(token.currency_id)) {
 			toast(`${sym} is already in your lineup`, 'error');
+			return;
+		}
+		// Belt-and-suspenders: filteredTokens already excludes mismatches, but
+		// this guards any other path that could call addToken directly.
+		if (activeSector !== 'wildcard' && tokenSector(token) !== activeSector) {
+			toast(`${sym} doesn't belong in the ${SECTORS.find((s) => s.id === activeSector)?.name} slot`, 'error');
 			return;
 		}
 		lineup = [
@@ -484,7 +527,7 @@
 						<div
 							role="group"
 							onmouseenter={(e) => openHover(e, token.currency_id, token.symbol ?? '')}
-							onmouseleave={closeHover}
+							onmouseleave={scheduleCloseHover}
 							class="rounded-[20px] p-4.5 transition-transform duration-200 hover:-translate-y-1.5"
 							style="background:{inLineup
 								? 'var(--color-primary-muted)'
@@ -601,7 +644,13 @@
 </div>
 
 {#if hoverToken}
-	<TokenHover currencyId={hoverToken.currencyId} symbol={hoverToken.symbol} anchor={hoverRect} />
+	<TokenHover
+		currencyId={hoverToken.currencyId}
+		symbol={hoverToken.symbol}
+		anchor={hoverRect}
+		onenter={cancelCloseHover}
+		onleave={scheduleCloseHover}
+	/>
 {/if}
 
 <Toast />

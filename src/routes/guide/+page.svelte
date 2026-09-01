@@ -52,8 +52,8 @@
 						},
 						{
 							label: 'Group play',
-							title: 'Multiplayer',
-							body: 'Three or more players in one contest. Join a fixed-size lobby that starts once it fills, or an open one that resolves on a timer regardless of headcount.'
+							title: 'Tournament',
+							body: 'Join by invite (private) or browse public tournaments and join before the registration window closes. Brackets run qualifier rounds into a final; free-to-play or real stakes.'
 						},
 						{
 							label: 'Contest length',

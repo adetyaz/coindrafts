@@ -14,16 +14,12 @@
 	};
 
 	let dailyTerm = $state<DailyTerm | null>(null);
-	let researchStreak = $state(0);
+	let selected = $state('');
 	let loading = $state(true);
 	let submitting = $state(false);
-	let selected = $state('');
 	let result = $state<{ correct: boolean; xpEarned: number; correctOption: string } | null>(null);
 
-	onMount(() => {
-		loadTerm();
-		loadStreak();
-	});
+	onMount(loadTerm);
 
 	async function loadTerm() {
 		loading = true;
@@ -34,15 +30,6 @@
 			dailyTerm = null;
 		} finally {
 			loading = false;
-		}
-	}
-
-	async function loadStreak() {
-		try {
-			const res = await fetch('/api/me');
-			if (res.ok) researchStreak = (await res.json()).researchStreak ?? 0;
-		} catch {
-			// non-critical — streak just won't show this load
 		}
 	}
 
@@ -58,8 +45,7 @@
 			const data = await res.json();
 			if (res.ok) {
 				result = data;
-				toast(data.correct ? `+${data.xpEarned} XP!` : 'Not quite — see you tomorrow!', data.correct ? 'success' : 'error');
-				loadStreak();
+				toast(data.correct ? `+${data.xpEarned} XP!` : 'Not quite — come back tomorrow!', data.correct ? 'success' : 'error');
 			} else {
 				toast(data.error || 'Failed to submit', 'error');
 			}
@@ -72,14 +58,7 @@
 </script>
 
 <div class="rounded-[20px] border border-border bg-surface p-[22px]">
-	<div class="mb-4.5 flex items-center justify-between">
-		<span class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Term of the day</span>
-		{#if researchStreak > 0}
-			<span class="font-mono text-xs font-bold text-text-muted" title="Learning streak — reading an article or a term counts">
-				{researchStreak} day streak
-			</span>
-		{/if}
-	</div>
+	<div class="mb-4.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Word of the day</div>
 
 	{#if loading}
 		<div class="h-24 animate-pulse rounded-2xl bg-surface-alt"></div>
@@ -94,21 +73,20 @@
 				{result.correct ? 'Correct!' : 'Not quite!'}
 			</p>
 			<p class="text-xs text-text-muted">
-				{result.correct ? `+${result.xpEarned} XP earned` : `The right definition was: ${result.correctOption}`}
+				{result.correct ? `+${result.xpEarned} XP earned` : `The correct answer was: ${result.correctOption}`}
 			</p>
 		</div>
 	{:else if dailyTerm.alreadyAnswered}
 		<div class="rounded-2xl bg-surface-alt p-4">
 			<p class="text-sm text-text-muted">
-				You already learned today's term{dailyTerm.wasCorrect ? ' — and got the quiz right!' : ''}
+				You already answered today{dailyTerm.wasCorrect ? ' — and got it right!' : ''}
 			</p>
 		</div>
 	{:else}
 		<div class="mb-3.5 rounded-2xl bg-surface-alt p-4">
-			<p class="mb-1 font-mono text-sm font-extrabold text-primary-ink">{dailyTerm.term}</p>
-			<p class="text-sm text-text-secondary">{dailyTerm.definition}</p>
+			<p class="font-mono text-sm font-extrabold text-primary-ink">{dailyTerm.term}</p>
 		</div>
-		<p class="mb-2 text-xs font-bold text-text-muted">Which one was it?</p>
+		<p class="mb-4 text-[15px] leading-snug font-bold">What does "{dailyTerm.term}" mean?</p>
 		<div class="flex flex-col gap-2">
 			{#each dailyTerm.quizOptions as opt (opt.value)}
 				<button

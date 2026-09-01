@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { ethers } from 'ethers';
 	import type { BadgeDef } from '$lib/badges';
+	import { toast } from '$lib/toast';
+	import Toast from '$lib/components/Toast.svelte';
+	import { getEvmWalletProvider } from '$lib/evmWallet';
+	import { ACHIEVEMENTS_ABI } from '$lib/achievementsAbi';
 
 	type Me = { id: string; username: string; xpTotal: number; paperXpTotal: number; streak: number };
 	type Contest = Record<string, unknown>;
 	type LeaderboardRow = { rank: number; id: string; isMe: boolean };
 	type League = { id: string; name: string };
+	type ClaimableAchievement = { typeId: number; name: string; description: string };
 
 	let me = $state<Me | null>(null);
 	let contests = $state<Contest[]>([]);
@@ -14,6 +20,56 @@
 	let totalPlayers = $state(0);
 	let myLeagues = $state<League[]>([]);
 	let loading = $state(true);
+
+	// On-chain achievement badges (0G Chain) — a second, separate system from
+	// the off-chain `badges` above. Claimed by the player, not pushed to them:
+	// the backend signs a voucher, the player's own wallet submits it.
+	let achievementsConfigured = $state(true);
+	let claimable = $state<ClaimableAchievement[]>([]);
+	let claimingTypeId = $state<number | null>(null);
+
+	async function loadClaimableAchievements() {
+		try {
+			const res = await fetch('/api/achievements/eligible');
+			if (!res.ok) return;
+			const data = await res.json();
+			achievementsConfigured = data.configured;
+			claimable = data.claimable ?? [];
+		} catch {
+			/* non-fatal — the rest of the profile page still works */
+		}
+	}
+
+	async function claimAchievement(typeId: number) {
+		claimingTypeId = typeId;
+		try {
+			const voucherRes = await fetch('/api/achievements/claim-voucher', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ typeId })
+			});
+			const voucherData = await voucherRes.json().catch(() => ({}));
+			if (!voucherRes.ok) throw new Error(voucherData?.error ?? 'Could not prepare claim');
+
+			const wallet = getEvmWalletProvider();
+			if (!wallet) throw new Error('Connect an EVM wallet to claim on-chain badges');
+
+			const browserProvider = new ethers.BrowserProvider(wallet.provider as never);
+			const signer = await browserProvider.getSigner();
+			const contract = new ethers.Contract(voucherData.contractAddress, ACHIEVEMENTS_ABI, signer);
+
+			toast('Confirm the claim in your wallet…', 'info');
+			const tx = await contract.claimAchievement(typeId, voucherData.signature);
+			await tx.wait();
+
+			toast('Badge claimed — it is in your wallet now.', 'success');
+			claimable = claimable.filter((c) => c.typeId !== typeId);
+		} catch (e) {
+			toast(e instanceof Error ? e.message : 'Claim failed', 'error');
+		} finally {
+			claimingTypeId = null;
+		}
+	}
 
 	const resolvedContests = $derived(contests.filter((c) => c.status === 'resolved'));
 
@@ -34,6 +90,7 @@
 				totalPlayers = rows.length;
 				myRank = rows.find((r) => r.isMe)?.rank ?? null;
 			}
+			void loadClaimableAchievements();
 			if (leaguesRes.ok) {
 				const data = await leaguesRes.json();
 				myLeagues = data.mine ?? [];
@@ -140,6 +197,36 @@
 					</div>
 				</div>
 
+				{#if achievementsConfigured && claimable.length > 0}
+					<div class="rounded-[20px] border border-border bg-surface p-6">
+						<div class="mb-1 flex items-center justify-between">
+							<div class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+								Achievements — unclaimed on 0G
+							</div>
+						</div>
+						<p class="mb-4 text-[11px] text-text-muted">
+							You've earned these. Claiming mints it to your own wallet — you approve and pay the gas, it's genuinely yours.
+						</p>
+						<div class="flex flex-col gap-2.5">
+							{#each claimable as a (a.typeId)}
+								<div class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface-alt p-4">
+									<div class="min-w-0">
+										<div class="text-sm font-extrabold">{a.name}</div>
+										<div class="text-[11px] text-text-muted">{a.description}</div>
+									</div>
+									<button
+										disabled={claimingTypeId === a.typeId}
+										onclick={() => claimAchievement(a.typeId)}
+										class="shrink-0 cursor-pointer rounded-full bg-primary px-4 py-2 text-xs font-extrabold text-text disabled:cursor-not-allowed disabled:opacity-60"
+									>
+										{claimingTypeId === a.typeId ? 'Claiming…' : 'Claim'}
+									</button>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
 				<div class="rounded-[20px] border border-border bg-surface p-6">
 					<div class="mb-4.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Recent contests</div>
 					{#if contests.length === 0}
@@ -184,3 +271,5 @@
 		</div>
 	{/if}
 </div>
+
+<Toast />

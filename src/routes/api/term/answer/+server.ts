@@ -10,9 +10,9 @@ export async function POST({ request, cookies }) {
 	const parsed = token ? parseSessionToken(token) : null;
 	if (!parsed) return json({ error: 'Unauthorized' }, { status: 401 });
 
-	const body = await request.json().catch(() => ({}));
+	const body = await request.json();
 	const { termId, answer } = body;
-	if (!termId || !answer) return json({ error: 'termId and answer required' }, { status: 400 });
+	if (!termId || !answer) return json({ error: 'Term ID and answer required' }, { status: 400 });
 
 	const dailyTerm = await db
 		.select()
@@ -31,11 +31,12 @@ export async function POST({ request, cookies }) {
 	if (existing) return json({ error: 'Already answered' }, { status: 409 });
 
 	const correct = answer === dailyTerm.correctOption;
-	const xpEarned = correct ? (dailyTerm.xpReward ?? 0) : 0;
+	const xpEarned = correct ? dailyTerm.xpReward : 0;
 
 	await db.insert(termAttempts).values({ userId: parsed.userId, termId, answer, correct, xpEarned });
+	await bumpResearchStreak(parsed.userId);
 
-	if (xpEarned > 0) {
+	if (correct && xpEarned) {
 		const user = await db
 			.select()
 			.from(users)
@@ -49,10 +50,6 @@ export async function POST({ request, cookies }) {
 				.where(eq(users.id, parsed.userId));
 		}
 	}
-
-	// Attempting counts toward the research streak regardless of correctness —
-	// this is an engagement/retention streak, not a knowledge-mastery one.
-	await bumpResearchStreak(parsed.userId);
 
 	return json({ correct, xpEarned, correctOption: dailyTerm.correctOption });
 }

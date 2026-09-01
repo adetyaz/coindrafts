@@ -9,6 +9,8 @@
 		sector: string | null;
 		xpReward: number;
 		boostSector: string | null;
+		category?: 'market' | 'vocab';
+		term?: string | null;
 		alreadyAnswered: boolean;
 		previousAnswer: string | null;
 		wasCorrect: boolean | null;
@@ -102,6 +104,11 @@
 			</p>
 		</div>
 	{:else}
+		{#if question.category === 'vocab' && question.term}
+			<div class="mb-3.5 rounded-2xl bg-surface-alt p-4">
+				<p class="mb-1 font-mono text-sm font-extrabold text-primary-ink">{question.term}</p>
+			</div>
+		{/if}
 		<p class="mb-4 text-[15px] leading-snug font-bold">{question.question}</p>
 		<div class="flex flex-col gap-2">
 			{#each question.options as opt (opt.value)}

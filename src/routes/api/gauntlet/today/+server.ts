@@ -31,6 +31,8 @@ export async function GET({ cookies, fetch }) {
 		sector: question.sector,
 		xpReward: question.xpReward,
 		boostSector: question.boostSector,
+		category: question.category,
+		term: question.term,
 		alreadyAnswered: !!attempt,
 		previousAnswer: attempt?.answer ?? null,
 		wasCorrect: attempt?.correct ?? null

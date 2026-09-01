@@ -112,12 +112,6 @@ export type TokenWithPrice = {
 };
 
 type RawToken = { currency_id: string; symbol?: string; name?: string };
-type RawSnapshot = {
-	price?: number;
-	change_pct_24h?: number;
-	turnover_24h?: number;
-	marketcap_rank?: number;
-};
 
 // The draft pool. This used to be 30 because each token cost its own snapshot
 // request and thirty in parallel already rate-limited — the cap was a symptom,

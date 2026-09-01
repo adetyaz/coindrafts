@@ -3,7 +3,6 @@ import { SiweMessage } from 'siwe';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { SESSION_SECRET } from '$env/static/private';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 import { createSessionToken } from '$lib/server/auth';

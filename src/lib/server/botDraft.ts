@@ -28,7 +28,13 @@ export function pickScrimmageBot(): (typeof SCRIMMAGE_BOTS)[number] {
 	return SCRIMMAGE_BOTS[Math.floor(Math.random() * SCRIMMAGE_BOTS.length)];
 }
 
-export type BotPick = { sector: string; symbol: string; name: string; currencyId: string };
+export type BotPick = {
+	sector: string;
+	symbol: string;
+	name: string;
+	currencyId: string;
+	price: number | null;
+};
 
 const SECTORS = ['l1', 'l2', 'defi', 'meme', 'wildcard'] as const;
 
@@ -60,7 +66,10 @@ export async function draftBotLineup(): Promise<BotPick[]> {
 			sector: inSector.length > 0 ? sector : classifySector([chosen.symbol as string]),
 			symbol: chosen.symbol as string,
 			name: chosen.name ?? (chosen.symbol as string),
-			currencyId: chosen.currency_id
+			currencyId: chosen.currency_id,
+			// Carried straight from the same batch call used to pick this token —
+			// no second price fetch needed, and nothing here can rate-limit.
+			price: chosen.price
 		});
 	}
 	return picks;

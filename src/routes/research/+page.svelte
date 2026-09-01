@@ -4,6 +4,7 @@
 	import { sectorTheme } from '$lib/sectorTheme';
 	import { toast } from '$lib/toast';
 	import Toast from '$lib/components/Toast.svelte';
+	import TermOfDay from '$lib/components/TermOfDay.svelte';
 
 	type Article = {
 		id: string;
@@ -195,6 +196,7 @@
 		</div>
 
 		<div class="flex min-w-0 flex-[1_1_280px] flex-col gap-3.5">
+			<TermOfDay />
 			<div class="rounded-[20px] border border-border bg-surface p-[22px]">
 				<div class="mb-4.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
 					Boosts ready
