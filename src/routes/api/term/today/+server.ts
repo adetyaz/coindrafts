@@ -24,10 +24,7 @@ export async function GET({ cookies }) {
 		id: dailyTerm.id,
 		term: dailyTerm.term,
 		definition: dailyTerm.definition,
-		quizOptions: dailyTerm.quizOptions,
 		xpReward: dailyTerm.xpReward,
-		alreadyAnswered: !!attempt,
-		previousAnswer: attempt?.answer ?? null,
-		wasCorrect: attempt?.correct ?? null
+		alreadyAnswered: !!attempt
 	});
 }
