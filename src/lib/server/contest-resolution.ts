@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { contests, lineups, lineupPicks, users, leagueMembers } from '$lib/server/schema';
-import { getSnapshot, extractPrice } from '$lib/server/sosovalue';
+import { getAllPrices } from '$lib/server/prices';
 import { calcPickScore, boostFactor, type ActiveBoost } from '$lib/server/scoring';
 import { settleStakeForContest } from '$lib/server/wager';
 
@@ -23,20 +23,30 @@ export async function scoreLineupPicks(
 	scoredAt: Date = new Date()
 ) {
 	const picks = await db.select().from(lineupPicks).where(eq(lineupPicks.lineupId, lineupId));
-	const snapshots = await Promise.all(picks.map((p) => getSnapshot(p.currencyId).catch(() => null)));
+
+	// Batch call, not one SoSoValue snapshot request per pick. This used to be
+	// exactly the per-token burst pattern that was already fixed for ENTRY
+	// pricing earlier — 10 concurrent requests for a 2-player contest, fragile
+	// to any rate limit or blip, with a resolution that just defers itself
+	// (correctly) on failure. The gap was that the result page had no retry for
+	// that deferred state, so a transient burst failure surfaced as a
+	// permanent-looking "Result unavailable" instead of "try again shortly".
+	// Same batch source entry prices already come from, so a token that was
+	// priceable at draft time is priceable at resolution time too.
+	const quotes = await getAllPrices().catch(() => null);
 
 	// A missing price is NOT a flat market.
 	//
-	// `extractPrice` returns 0 when it can't find a price, and scoring previously
-	// treated that as entry === exit, i.e. "this token didn't move" — so an API
-	// outage silently produced a real-looking result, and with a wager attached
-	// that's a payout decided by a dropped HTTP request.
+	// Scoring previously could treat "no price found" as entry === exit, i.e.
+	// "this token didn't move" — so an API outage silently produced a
+	// real-looking result, and with a wager attached that's a payout decided by
+	// a dropped HTTP request.
 	//
 	// Refusing to score is the right failure: a contest that settles late is
 	// recoverable, a contest that settles wrong is not.
 	const unpriced = picks
-		.map((p, i) => ({ symbol: p.tokenSymbol, price: extractPrice(snapshots[i]) }))
-		.filter((x) => !(x.price > 0))
+		.map((p) => ({ symbol: p.tokenSymbol, price: quotes?.get(p.tokenSymbol.toUpperCase())?.price ?? null }))
+		.filter((x) => !(x.price != null && x.price > 0))
 		.map((x) => x.symbol);
 
 	if (unpriced.length > 0) {
@@ -46,7 +56,7 @@ export async function scoreLineupPicks(
 	let total = 0;
 	for (let i = 0; i < picks.length; i++) {
 		const pick = picks[i];
-		const exitPrice = extractPrice(snapshots[i]);
+		const exitPrice = quotes!.get(pick.tokenSymbol.toUpperCase())!.price;
 		const entry = Number(pick.entryPrice ?? 0);
 		const pct = entry > 0 ? ((exitPrice - entry) / entry) * 100 : 0;
 		// Boosts finally apply. They were earned, stored, counted down and

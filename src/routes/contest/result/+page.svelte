@@ -36,21 +36,25 @@
 	let rematching = $state(false);
 	let hasResult = $state(false);
 	let loading = $state(true);
+	let resolving = $state(false);
 	let error = $state('');
 	let aiBreakdown = $state('');
 	let aiLoading = $state(false);
 	let contestId = $state('');
 	let newBadges = $state<{ code: string; emoji: string; name: string }[]>([]);
 
-	onMount(async () => {
-		const params = new URLSearchParams(window.location.search);
-		contestId = params.get('contestId') ?? '';
+	// A contest that just ended scores off a live batch price fetch
+	// (contest-resolution.ts) — a transient blip there is expected, not a
+	// failure, and the server explicitly defers rather than guessing. Landing
+	// here straight off the game page (the common case) is exactly when that
+	// fetch is most likely to still be in flight. Retrying a few times before
+	// giving up turns "Result unavailable" (permanent-looking, wrong) into a
+	// few seconds of "Still resolving" (accurate) for what's normally a
+	// same-second recovery.
+	const MAX_RETRIES = 6;
+	const RETRY_DELAY_MS = 4000;
 
-		if (!contestId) {
-			loading = false;
-			return;
-		}
-
+	async function loadResult(attempt = 0) {
 		try {
 			const res = await fetch(`/api/contest/${contestId}/result`);
 			// Still running — send them to watch it rather than showing an error for
@@ -62,7 +66,16 @@
 					return;
 				}
 			}
-			if (!res.ok) throw new Error('Failed to load contest result');
+			if (!res.ok) {
+				const payload = await res.json().catch(() => ({}));
+				if (payload?.retryable && attempt < MAX_RETRIES) {
+					resolving = true;
+					setTimeout(() => loadResult(attempt + 1), RETRY_DELAY_MS);
+					return;
+				}
+				throw new Error(payload?.error ?? 'Failed to load contest result');
+			}
+			resolving = false;
 			const data = await res.json();
 			result = {
 				status: data.status,
@@ -93,9 +106,23 @@
 			}
 		} catch (e: any) {
 			error = e.message ?? 'Could not load result';
-		} finally {
+			resolving = false;
 			loading = false;
+			return;
 		}
+		if (!resolving) loading = false;
+	}
+
+	onMount(() => {
+		const params = new URLSearchParams(window.location.search);
+		contestId = params.get('contestId') ?? '';
+
+		if (!contestId) {
+			loading = false;
+			return;
+		}
+
+		loadResult();
 	});
 
 	async function fetchAiBreakdown(picks: typeof breakdown, status: string) {

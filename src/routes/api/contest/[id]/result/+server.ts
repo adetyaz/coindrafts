@@ -46,8 +46,17 @@ export async function GET({ params, cookies }) {
 			const reason =
 				result.reason === 'missing_lineup_b'
 					? 'Opponent has not submitted a lineup yet'
-					: 'Contest is not ready to resolve yet';
-			return json({ error: reason }, { status: 400 });
+					: result.reason === 'prices_unavailable'
+						? 'Still resolving — waiting on live prices'
+						: 'Contest is not ready to resolve yet';
+			// `retryable` tells the client whether this is worth polling for.
+			// `prices_unavailable` is a batch price-fetch blip — genuinely transient,
+			// resolves itself the moment prices are reachable again. A missing
+			// opponent lineup is not something a retry fixes on its own.
+			return json(
+				{ error: reason, reason: result.reason, retryable: result.reason === 'prices_unavailable' },
+				{ status: 400 }
+			);
 		}
 		contest = await db
 			.select()
