@@ -6,19 +6,27 @@
 // contracts/contracts/CoinDraftAchievements.sol and ARCHITECTURE.md.
 import { env } from '$env/dynamic/private';
 import { ethers } from 'ethers';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { contests, gauntletAttempts } from '$lib/server/schema';
+import { contests, gauntletAttempts, userBadges } from '$lib/server/schema';
 import { ACHIEVEMENTS_ABI } from '$lib/achievementsAbi';
 
-// Must match the order achievements were seeded in via
-// contracts/scripts/seed-achievements.ts — typeId is just an array index
-// on-chain, there's no name-based lookup.
+// Must match the order achievements were added on-chain — typeId is just an
+// array index on-chain, there's no name-based lookup. 0-3 seeded via
+// contracts/scripts/seed-achievements.ts, 4-8 via
+// contracts/scripts/add-more-achievement-types.ts (closing the gap where
+// these 5 showed as "earned" in the off-chain Badge cabinet — src/lib/badges.ts
+// — but had no on-chain type to claim).
 export const ACHIEVEMENT_TYPES = {
 	FIRST_WIN_OPPONENT: 0,
 	FIRST_WIN_BOT: 1,
 	QUIZ_CORRECT: 2,
-	QUIZ_STREAK_5: 3
+	QUIZ_STREAK_5: 3,
+	WIN_STREAK_3: 4,
+	WIN_STREAK_5: 5,
+	VETERAN_10: 6,
+	VETERAN_25: 7,
+	LEAGUE_FOUNDER: 8
 } as const;
 
 export const ACHIEVEMENT_META: Record<number, { name: string; description: string }> = {
@@ -37,7 +45,39 @@ export const ACHIEVEMENT_META: Record<number, { name: string; description: strin
 	[ACHIEVEMENT_TYPES.QUIZ_STREAK_5]: {
 		name: 'Know-It-All',
 		description: 'Answered 5 Gauntlet quiz questions correctly in a row.'
+	},
+	[ACHIEVEMENT_TYPES.WIN_STREAK_3]: {
+		name: 'On Fire',
+		description: 'Won 3 contests in a row.'
+	},
+	[ACHIEVEMENT_TYPES.WIN_STREAK_5]: {
+		name: 'Unstoppable',
+		description: 'Won 5 contests in a row.'
+	},
+	[ACHIEVEMENT_TYPES.VETERAN_10]: {
+		name: 'Veteran',
+		description: 'Won 10 contests total.'
+	},
+	[ACHIEVEMENT_TYPES.VETERAN_25]: {
+		name: 'Champion',
+		description: 'Won 25 contests total.'
+	},
+	[ACHIEVEMENT_TYPES.LEAGUE_FOUNDER]: {
+		name: 'League Founder',
+		description: 'Created your first league.'
 	}
+};
+
+// Maps the 5 win/streak/league badges to the same badge_code the off-chain
+// Badge cabinet already grants them under (src/lib/server/badges.ts) — reuses
+// that table as the source of truth instead of re-deriving win totals here,
+// so the two systems can never drift apart on what counts as "earned".
+const BADGE_CODE_TO_TYPE_ID: Record<string, number> = {
+	win_streak_3: ACHIEVEMENT_TYPES.WIN_STREAK_3,
+	win_streak_5: ACHIEVEMENT_TYPES.WIN_STREAK_5,
+	veteran_10: ACHIEVEMENT_TYPES.VETERAN_10,
+	veteran_25: ACHIEVEMENT_TYPES.VETERAN_25,
+	league_founder: ACHIEVEMENT_TYPES.LEAGUE_FOUNDER
 };
 
 function isConfigured(): boolean {
@@ -85,6 +125,14 @@ async function checkEligibility(userId: string): Promise<number[]> {
 		.limit(5);
 	if (lastFive.length === 5 && lastFive.every((a) => a.correct)) {
 		eligible.push(ACHIEVEMENT_TYPES.QUIZ_STREAK_5);
+	}
+
+	const earnedCodes = await db
+		.select({ badgeCode: userBadges.badgeCode })
+		.from(userBadges)
+		.where(and(eq(userBadges.userId, userId), inArray(userBadges.badgeCode, Object.keys(BADGE_CODE_TO_TYPE_ID))));
+	for (const { badgeCode } of earnedCodes) {
+		eligible.push(BADGE_CODE_TO_TYPE_ID[badgeCode]);
 	}
 
 	return eligible;

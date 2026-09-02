@@ -61,11 +61,25 @@ export async function GET({ params, url }) {
 
 	const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+	// Mirrors src/lib/server/resultCard.ts and src/routes/layout.css's design
+	// tokens — this is a standalone HTML document (see the file header), so it
+	// can't load app.css or the Google Fonts <link> from app.html and has to
+	// duplicate both. Keep in sync if either changes.
+	const SECTOR_COLOR: Record<string, string> = {
+		l1: '#68C2A8',
+		l2: '#5FA8D8',
+		defi: '#F7C978',
+		meme: '#F78E79',
+		wildcard: '#81BBE3'
+	};
+
 	const pickChips = picks
 		.map((p) => {
 			const pct = Number(p.pctChange ?? 0);
 			const pctStr = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
-			return `<span style="background:#f0eff8;color:#534ab7;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;margin:3px">${esc(p.tokenSymbol)} ${esc(pctStr)}</span>`;
+			const color = SECTOR_COLOR[p.sector.toLowerCase()] ?? '#5C6B66';
+			const pctColor = pct >= 0 ? '#1F7A63' : '#B04A32';
+			return `<span style="display:inline-flex;align-items:baseline;gap:6px;background:#EDF3F2;border:1px solid ${color}66;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;margin:3px"><span>${esc(p.tokenSymbol)}</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;color:${pctColor}">${esc(pctStr)}</span></span>`;
 		})
 		.join('');
 
@@ -88,25 +102,51 @@ export async function GET({ params, url }) {
 	<meta name="twitter:description" content="${esc(description)}" />
 	<meta name="twitter:image" content="${esc(cardUrl)}" />
 
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link
+		rel="stylesheet"
+		href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
+	/>
+
 	<style>
-		body { font-family: 'Archivo', system-ui, sans-serif; background: #F5FAFA; margin: 0; padding: 40px 16px; color: #1A2421; }
-		.card { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; align-items: center; }
-		img { width: 100%; border-radius: 18px; box-shadow: 0 12px 34px rgba(26,36,33,0.18); }
-		.result { width: 100%; box-sizing: border-box; border: 1px solid #E1E8E6; border-radius: 20px; background: #FFFFFF; padding: 20px; }
-		.status { font-weight: 800; color: ${didWin ? '#B04A32' : '#5C6B66'}; }
+		* { box-sizing: border-box; }
+		body { font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif; background: #F5FAFA; margin: 0; padding: 56px 16px; color: #1A2421; }
+		.card { max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; align-items: center; }
+		.brand { display: flex; align-items: center; gap: 10px; }
+		.brand .mark { width: 18px; height: 18px; border-radius: 5px; background: #F78E79; transform: rotate(45deg); }
+		.brand span { font-size: 16px; font-weight: 900; letter-spacing: -0.02em; }
+		img.og { width: 100%; border-radius: 20px; box-shadow: 0 16px 40px rgba(26,36,33,0.16); display: block; }
+		.result { width: 100%; border: 1px solid #E1E8E6; border-radius: 20px; background: #FFFFFF; padding: 24px; box-shadow: 0 2px 10px rgba(26,36,33,0.04); }
+		.result h1 { margin: 0 0 12px; font-size: 17px; font-weight: 800; }
+		.status {
+			display: inline-block;
+			font-weight: 900;
+			font-size: 12px;
+			letter-spacing: 0.06em;
+			padding: 7px 14px;
+			border-radius: 999px;
+			margin-bottom: 14px;
+			background: ${didWin ? '#F78E79' : '#EDF3F2'};
+			color: ${didWin ? '#1A2421' : '#5C6B66'};
+		}
+		.status .pts { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+		.chips { display: flex; flex-wrap: wrap; gap: 0; }
 		.actions { display: flex; gap: 10px; width: 100%; }
-		.actions a { flex: 1; box-sizing: border-box; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 999px; font-weight: 800; font-size: 14px; text-decoration: none; }
+		.actions a { flex: 1; box-sizing: border-box; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 999px; font-weight: 800; font-size: 14px; text-decoration: none; transition: transform 0.15s ease; }
+		.actions a:hover { transform: translateY(-1px); }
 		.share-x { background: #F78E79; color: #1A2421; }
 		.play { background: #FFFFFF; color: #5C6B66; border: 1px solid #E1E8E6; }
 	</style>
 </head>
 <body>
 	<div class="card">
-		<img src="${esc(cardUrl)}" alt="${esc(title)}" />
+		<div class="brand"><div class="mark"></div><span>CoinDraft</span></div>
+		<img class="og" src="${esc(cardUrl)}" alt="${esc(title)}" />
 		<div class="result">
-			<h1 style="margin:0 0 4px;font-size:18px">${esc(username)}'s ${esc(contestType)} contest</h1>
-			<p class="status" style="margin:0 0 12px">${didWin ? 'YOU WON' : 'YOU LOST'} · ${yourScore} pts</p>
-			<div>${pickChips}</div>
+			<h1>${esc(username)}'s ${esc(contestType)} contest</h1>
+			<div class="status">${didWin ? 'YOU WON' : 'YOU LOST'} <span class="pts">· ${yourScore} pts</span></div>
+			<div class="chips">${pickChips}</div>
 		</div>
 		<div class="actions">
 			<a class="share-x" href="${esc(tweetUrl)}" target="_blank" rel="noopener noreferrer">Share to X</a>

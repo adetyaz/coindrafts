@@ -4,7 +4,7 @@
 	import type { BadgeDef } from '$lib/badges';
 	import { toast } from '$lib/toast';
 	import Toast from '$lib/components/Toast.svelte';
-	import { getEvmWalletProvider } from '$lib/evmWallet';
+	import { getEvmWalletProvider, ensureZeroGTestnet } from '$lib/evmWallet';
 	import { ACHIEVEMENTS_ABI } from '$lib/achievementsAbi';
 
 	type Me = { id: string; username: string; xpTotal: number; paperXpTotal: number; streak: number };
@@ -53,6 +53,9 @@
 
 			const wallet = getEvmWalletProvider();
 			if (!wallet) throw new Error('Connect an EVM wallet to claim on-chain badges');
+
+			toast('Switching your wallet to 0G…', 'info');
+			await ensureZeroGTestnet(wallet.provider);
 
 			const browserProvider = new ethers.BrowserProvider(wallet.provider as never);
 			const signer = await browserProvider.getSigner();

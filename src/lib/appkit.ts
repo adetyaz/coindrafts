@@ -66,12 +66,10 @@ if (typeof window !== 'undefined') {
 			// Both families are listed so users can pick either. Previously this
 			// was EVM-only, which left the Solana adapter unreachable.
 			networks: [...evmNetworks, ...solanaNetworks],
-			// No `defaultNetwork` on purpose. Setting one makes AppKit push the
-			// wallet toward that chain and prompt to switch — which is pure friction
-			// here, because **nothing in CoinDraft is on-chain**. Sign-in is a SIWE
-			// signature; the chain id is recorded but never acted on. Whatever
-			// network the wallet is already on is fine, and asking to change it
-			// makes the app look like it wants a transaction when it doesn't.
+			// No `defaultNetwork` — sign-in is a chain-agnostic SIWE signature, not
+			// a transaction, so connecting shouldn't push the wallet anywhere.
+			// The switch to 0G only happens when it's actually needed: right before
+			// a claim tx, via evmWallet.ts's ensureZeroGTestnet().
 			// `url` MUST match the page's real origin — wallets compare this
 			// against where the connection request actually came from, and a
 			// mismatch is exactly the signal phishing detectors look for. This

@@ -45,7 +45,7 @@ export function renderResultCardSvg(data: ResultCardData): string {
 		.slice(0, 5)
 		.map((p, i) => {
 			const x = 44 + i * (chipW + 16);
-			const color = SECTOR_COLOR[p.sector] ?? MUTED;
+			const color = SECTOR_COLOR[p.sector.toLowerCase()] ?? MUTED;
 			const pctStr = p.pct >= 0 ? `+${p.pct.toFixed(1)}%` : `${p.pct.toFixed(1)}%`;
 			const pctColor = p.pct >= 0 ? MINT : CORAL;
 			return `
