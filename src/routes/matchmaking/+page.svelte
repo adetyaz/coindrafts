@@ -164,7 +164,7 @@
 			<h1 class="mt-3 text-[38px] leading-none font-black tracking-[-0.04em] max-sm:text-[28px]">
 				How long should it run?
 			</h1>
-			<p class="mt-3 max-w-[46ch] text-[15px] text-text-muted">
+			<p class="mt-3 text-[15px] text-text-muted">
 				You'll be matched with someone who picked the same length, so prices are read over the same
 				window. Shorter games fill more slowly — there are fewer people waiting on them.
 			</p>
@@ -208,7 +208,7 @@
 					{/each}
 				</div>
 				{#if stakeTier > 0}
-					<p class="mt-3 max-w-[46ch] text-[13px] text-text-muted">
+					<p class="mt-3 text-[13px] text-text-muted">
 						You'll be matched with someone who chose the same stake. Before the game starts you can
 						raise — but it always settles at the <strong class="text-text">lower</strong> of the two,
 						so you can never be pushed above your own number.
@@ -223,15 +223,15 @@
 				onclick={startSearch}
 				class="mt-8 h-13 w-full cursor-pointer rounded-full bg-primary text-sm font-extrabold text-text transition hover:bg-primary-hover"
 			>
-				Find an opponent · {durationLabel(durationMinutes)}{stakeTier > 0 ? ` · ${stakeTier} XP` : ''}
+				Find an opponent · {durationLabel(durationMinutes)}{stakeTier > 0
+					? ` · ${stakeTier} XP`
+					: ''}
 			</button>
 
 			<!-- Offered up front, not just after 20s of waiting. Someone who'd rather
 			     not wait for a real opponent shouldn't have to wait to find that out. -->
 			<div class="mt-5 border-t border-border pt-5 text-center">
-				<p class="text-[13px] text-text-muted">
-					Don't want to wait for a real opponent?
-				</p>
+				<p class="text-[13px] text-text-muted">Don't want to wait for a real opponent?</p>
 				<button
 					onclick={startScrimmage}
 					disabled={startingScrimmage}
@@ -272,7 +272,7 @@
 				<div class="text-[54px] leading-[0.94] font-black tracking-[-0.045em]">
 					Finding your rival
 				</div>
-				<p class="mt-4 max-w-[40ch] text-[15px] opacity-80">
+				<p class="mt-4 text-[15px] opacity-80">
 					Scanning for a real, currently-available opponent. No bots here — if no one's around,
 					you'll get the option to Scrimmage instead while we keep looking.
 				</p>
@@ -290,10 +290,14 @@
 			</div>
 		</div>
 		{#if noOpponentYet}
-			<div class="mt-4.5 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-border bg-surface p-5">
+			<div
+				class="mt-4.5 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-border bg-surface p-5"
+			>
 				<div>
 					<div class="text-sm font-extrabold text-text">No one's online right now</div>
-					<p class="mt-1 text-[13px] text-text-muted">We'll keep searching in the background — or jump into Scrimmage while you wait.</p>
+					<p class="mt-1 text-[13px] text-text-muted">
+						We'll keep searching in the background — or jump into Scrimmage while you wait.
+					</p>
 				</div>
 				<button
 					onclick={startScrimmage}

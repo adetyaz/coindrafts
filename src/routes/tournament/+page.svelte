@@ -155,7 +155,11 @@
 			const err = await res.json().catch(() => ({}));
 			const known = ['invite_required', 'invite_invalid'].includes(err.reason);
 			toast(
-				known ? err.error : err.error === 'closed' ? 'Registration for this tournament is closed' : 'Failed to join',
+				known
+					? err.error
+					: err.error === 'closed'
+						? 'Registration for this tournament is closed'
+						: 'Failed to join',
 				'error'
 			);
 			if (known) view = 'menu';
@@ -216,8 +220,10 @@
 			lastInvite = { joinUrl: data.joinUrl, emailStatus: data.emailStatus };
 			inviteEmail = '';
 			if (data.emailStatus === 'sent') toast('Invite emailed', 'success');
-			else if (data.emailStatus === 'skipped') toast('Invite link created — copy and share it', 'success');
-			else toast('Invite link created — email delivery unavailable, copy the link instead', 'success');
+			else if (data.emailStatus === 'skipped')
+				toast('Invite link created — copy and share it', 'success');
+			else
+				toast('Invite link created — email delivery unavailable, copy the link instead', 'success');
 		} finally {
 			sendingInvite = false;
 		}
@@ -244,14 +250,16 @@
 
 <div class="mx-auto max-w-[900px] px-7 py-14">
 	{#if view === 'menu'}
-		<div class="mb-2.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary-ink uppercase">
+		<div
+			class="mb-2.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary-ink uppercase"
+		>
 			Tournament
 		</div>
 		<h1 class="text-[40px] leading-none font-black tracking-[-0.04em]">Tournaments</h1>
-		<p class="mt-2 max-w-[52ch] text-sm text-text-muted">
-			Free to play — winner-take-all or a top-3 XP split, brackets of qualifier groups feeding into a
-			final. Public ones are open to anyone; private ones are invite-only. Sponsor-funded, real-money
-			tournaments are coming once staking exists.
+		<p class="mt-2 text-sm text-text-muted">
+			Free to play — winner-take-all or a top-3 XP split, brackets of qualifier groups feeding into
+			a final. Public ones are open to anyone; private ones are invite-only. Sponsor-funded,
+			real-money tournaments are coming once staking exists.
 		</p>
 		<div class="mt-6 flex flex-wrap gap-2.5">
 			<button
@@ -268,7 +276,9 @@
 			</button>
 		</div>
 	{:else if view === 'create'}
-		<button class="mb-4 cursor-pointer text-xs font-bold text-text-muted" onclick={backToMenu}>&larr; Back</button>
+		<button class="mb-4 cursor-pointer text-xs font-bold text-text-muted" onclick={backToMenu}
+			>&larr; Back</button
+		>
 		<h1 class="text-[32px] leading-none font-black tracking-[-0.03em]">Create a tournament</h1>
 		<div class="mt-6 flex flex-col gap-4 rounded-[20px] border border-border bg-surface p-6">
 			<label class="flex flex-col gap-1.5 text-sm font-bold">
@@ -309,21 +319,30 @@
 			</div>
 			<label class="flex flex-col gap-1.5 text-sm font-bold">
 				Duration
-				<select bind:value={contestType} class="rounded-xl border border-border bg-surface-alt px-3.5 py-2.5 text-sm font-normal">
+				<select
+					bind:value={contestType}
+					class="rounded-xl border border-border bg-surface-alt px-3.5 py-2.5 text-sm font-normal"
+				>
 					<option value="daily">Daily · 24h</option>
 					<option value="weekly">Weekly · 7d, 2x XP</option>
 				</select>
 			</label>
 			<label class="flex flex-col gap-1.5 text-sm font-bold">
 				Payout structure (XP)
-				<select bind:value={payoutStructure} class="rounded-xl border border-border bg-surface-alt px-3.5 py-2.5 text-sm font-normal">
+				<select
+					bind:value={payoutStructure}
+					class="rounded-xl border border-border bg-surface-alt px-3.5 py-2.5 text-sm font-normal"
+				>
 					<option value="winner_take_all">Winner takes all</option>
 					<option value="top3_weighted">Top-3 split (30 / 25 / 23)</option>
 				</select>
 			</label>
 			<label class="flex flex-col gap-1.5 text-sm font-bold">
 				Sector restriction
-				<select bind:value={sectorRestriction} class="rounded-xl border border-border bg-surface-alt px-3.5 py-2.5 text-sm font-normal">
+				<select
+					bind:value={sectorRestriction}
+					class="rounded-xl border border-border bg-surface-alt px-3.5 py-2.5 text-sm font-normal"
+				>
 					{#each SECTORS as s (s.id)}
 						<option value={s.id}>{s.label}</option>
 					{/each}
@@ -347,7 +366,9 @@
 			</button>
 		</div>
 	{:else if view === 'browse'}
-		<button class="mb-4 cursor-pointer text-xs font-bold text-text-muted" onclick={backToMenu}>&larr; Back</button>
+		<button class="mb-4 cursor-pointer text-xs font-bold text-text-muted" onclick={backToMenu}
+			>&larr; Back</button
+		>
 		<div class="flex flex-wrap items-baseline justify-between gap-3">
 			<h1 class="text-[32px] leading-none font-black tracking-[-0.03em]">Open tournaments</h1>
 			{#if open.length > 0}
@@ -362,7 +383,9 @@
 				{/each}
 			</div>
 		{:else if open.length === 0}
-			<div class="mt-4 flex flex-col items-center gap-3 rounded-[20px] border border-dashed border-border-strong px-6 py-14 text-center">
+			<div
+				class="mt-4 flex flex-col items-center gap-3 rounded-[20px] border border-dashed border-border-strong px-6 py-14 text-center"
+			>
 				<p class="text-sm text-text-muted">Nothing open right now.</p>
 				<button
 					class="cursor-pointer rounded-full bg-primary px-5 py-2.5 text-xs font-extrabold text-text"
@@ -405,7 +428,9 @@
 						</div>
 						<div class="flex items-center gap-4">
 							<div class="text-right">
-								<div class="font-mono text-lg leading-none font-black tabular-nums">{t.participantCount}</div>
+								<div class="font-mono text-lg leading-none font-black tabular-nums">
+									{t.participantCount}
+								</div>
 								<div class="mt-1 text-[10px] font-bold tracking-[0.08em] text-text-muted uppercase">
 									joined
 								</div>
@@ -424,10 +449,15 @@
 	{:else if view === 'status' && detail}
 		<div class="mb-2.5 flex items-center gap-2">
 			<span class="font-mono text-[11px] font-bold tracking-[0.14em] text-primary-ink uppercase">
-				{detail.status === 'open' ? 'Registration open' : detail.status === 'active' ? 'Bracket underway' : 'Resolved'}
+				{detail.status === 'open'
+					? 'Registration open'
+					: detail.status === 'active'
+						? 'Bracket underway'
+						: 'Resolved'}
 			</span>
 			{#if detail.accessType === 'private'}
-				<span class="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-text-muted uppercase"
+				<span
+					class="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-bold tracking-[0.1em] text-text-muted uppercase"
 					>Private</span
 				>
 			{/if}
@@ -439,7 +469,9 @@
 		</p>
 		<div class="mt-5 flex flex-col gap-2.5">
 			{#each detail.groups as g (g.id)}
-				<div class="flex items-center justify-between rounded-[16px] border border-border bg-surface p-4">
+				<div
+					class="flex items-center justify-between rounded-[16px] border border-border bg-surface p-4"
+				>
 					<span class="text-sm font-bold">
 						{g.tournamentStage === 1 ? 'Final' : 'Qualifier group'}
 						{g.id === detail.myLobbyId ? ' (you)' : ''}
@@ -474,7 +506,9 @@
 					</div>
 					{#if lastInvite}
 						<div class="mt-3.5 flex items-center gap-2 rounded-xl bg-surface-alt px-3.5 py-2.5">
-							<span class="min-w-0 flex-1 truncate font-mono text-xs text-text-secondary">{lastInvite.joinUrl}</span>
+							<span class="min-w-0 flex-1 truncate font-mono text-xs text-text-secondary"
+								>{lastInvite.joinUrl}</span
+							>
 							<button
 								class="shrink-0 cursor-pointer rounded-full bg-primary-muted px-3 py-1.5 text-[11px] font-bold text-primary-ink"
 								onclick={copyInviteLink}

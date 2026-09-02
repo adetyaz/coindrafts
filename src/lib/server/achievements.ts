@@ -4,12 +4,12 @@
 // claims for themselves, from their own wallet, paying their own gas; the
 // contract verifies the signature on-chain before minting anything. See
 // contracts/contracts/CoinDraftAchievements.sol and ARCHITECTURE.md.
-import { env } from '$env/dynamic/private';
 import { ethers } from 'ethers';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { contests, gauntletAttempts, userBadges } from '$lib/server/schema';
 import { ACHIEVEMENTS_ABI } from '$lib/achievementsAbi';
+import { ZG_CHAIN, ZG_STORAGE } from '$lib/server/zgNetwork';
 
 // Must match the order achievements were added on-chain — typeId is just an
 // array index on-chain, there's no name-based lookup. 0-3 seeded via
@@ -81,15 +81,15 @@ const BADGE_CODE_TO_TYPE_ID: Record<string, number> = {
 };
 
 function isConfigured(): boolean {
-	return Boolean(env.ACHIEVEMENTS_CONTRACT_ADDRESS && env.ZG_STORAGE_PRIVATE_KEY);
+	return Boolean(ZG_CHAIN.contractAddress && ZG_STORAGE.privateKey);
 }
 
 function getProvider() {
-	return new ethers.JsonRpcProvider(env.ACHIEVEMENTS_RPC_URL || 'https://evmrpc-testnet.0g.ai');
+	return new ethers.JsonRpcProvider(ZG_CHAIN.rpcUrl);
 }
 
 function getReadContract() {
-	return new ethers.Contract(env.ACHIEVEMENTS_CONTRACT_ADDRESS!, ACHIEVEMENTS_ABI, getProvider());
+	return new ethers.Contract(ZG_CHAIN.contractAddress!, ACHIEVEMENTS_ABI, getProvider());
 }
 
 /** Off-chain conditions only — does NOT check whether it's already been claimed on-chain. */
@@ -183,14 +183,14 @@ export async function signClaimVoucher(
 	const already: boolean = await contract.hasAchievement(walletAddress, typeId);
 	if (already) return { ok: false, error: 'Already claimed.' };
 
-	const contractAddress = env.ACHIEVEMENTS_CONTRACT_ADDRESS!;
+	const contractAddress = ZG_CHAIN.contractAddress!;
 	// Must match `keccak256(abi.encodePacked(address(this), msg.sender, typeId))`
 	// + toEthSignedMessageHash() on-chain, exactly.
 	const voucher = ethers.solidityPackedKeccak256(
 		['address', 'address', 'uint256'],
 		[contractAddress, walletAddress, typeId]
 	);
-	const signer = new ethers.Wallet(env.ZG_STORAGE_PRIVATE_KEY!);
+	const signer = new ethers.Wallet(ZG_STORAGE.privateKey!);
 	const signature = await signer.signMessage(ethers.getBytes(voucher));
 
 	return { ok: true, signature, contractAddress };

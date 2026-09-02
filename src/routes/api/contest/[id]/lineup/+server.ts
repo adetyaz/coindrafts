@@ -47,23 +47,18 @@ export async function POST({ params, request, cookies }) {
 		.limit(1)
 		.then((rows) => rows[0] ?? null);
 
-	let lineupId = existingLineup?.id;
-	if (!lineupId) {
-		const inserted = await db
-			.insert(lineups)
-			.values({
-				contestId,
-				userId: parsed.userId,
-				locked: true,
-				finalScore: '0'
-			})
-			.returning({ id: lineups.id });
-		lineupId = inserted[0].id;
-	} else {
-		await db.update(lineups).set({ locked: true }).where(eq(lineups.id, lineupId));
-		await db.delete(lineupPicks).where(eq(lineupPicks.lineupId, lineupId));
-	}
-
+	// ── Price FIRST, write second ────────────────────────────────────────────
+	// Order matters, and getting it wrong corrupted real games. This used to
+	// mark the lineup `locked` and DELETE its picks up front, then fetch prices,
+	// then write the picks back. Any failure in the fetch left a lineup flagged
+	// locked and holding nothing — permanently, since a re-lock is refused once
+	// the contest goes live. That is exactly how contest 352fc4db ended up with
+	// a player who had zero picks, scored 0, and lost a match they never played;
+	// the trigger was getTokensWithPrices() throwing on production for weeks
+	// (Binance geo-blocks the API from US regions, see src/lib/server/prices.ts).
+	//
+	// Nothing below touches the database until every pick has a price in hand.
+	//
 	// Priced from the same batch pool the draft screen itself is built from —
 	// one cached call, not five parallel single-token requests. That per-token
 	// burst (here and in the bot path below) was the actual cause of entry
@@ -83,11 +78,19 @@ export async function POST({ params, request, cookies }) {
 		}
 	}
 
-	for (let i = 0; i < picks.length; i++) {
-		const pick = picks[i];
+	const pickRows: {
+		tokenSymbol: string;
+		tokenName: string;
+		sector: string;
+		currencyId: string;
+		entryPrice: string;
+		exitPrice: string;
+		pctChange: string;
+		score: string;
+	}[] = [];
+	for (const pick of picks) {
 		const entryPrice = await priceFor(String(pick.currencyId));
-		await db.insert(lineupPicks).values({
-			lineupId,
+		pickRows.push({
 			tokenSymbol: String(pick.symbol ?? '').toUpperCase(),
 			tokenName: String(pick.name ?? pick.symbol ?? ''),
 			sector: String(pick.sector ?? 'wildcard'),
@@ -98,6 +101,28 @@ export async function POST({ params, request, cookies }) {
 			score: '0'
 		});
 	}
+
+	// ── Then write it all, atomically ────────────────────────────────────────
+	// Wrapped in a transaction so the lock, the clearing of any previous picks
+	// and the new picks land together or not at all. Without it, a failure
+	// between the delete and the inserts leaves the same empty-locked-lineup
+	// state the reordering above is meant to prevent.
+	let lineupId: string;
+	await db.transaction(async (tx) => {
+		if (!existingLineup?.id) {
+			const inserted = await tx
+				.insert(lineups)
+				.values({ contestId, userId: parsed.userId, locked: true, finalScore: '0' })
+				.returning({ id: lineups.id });
+			lineupId = inserted[0].id;
+		} else {
+			lineupId = existingLineup.id;
+			await tx.update(lineups).set({ locked: true }).where(eq(lineups.id, lineupId));
+			await tx.delete(lineupPicks).where(eq(lineupPicks.lineupId, lineupId));
+		}
+		await tx.insert(lineupPicks).values(pickRows.map((r) => ({ ...r, lineupId })));
+	});
+	lineupId = lineupId!;
 
 	// Scrimmage contests are created directly (never via matchmaking_queue), so
 	// bots-service never sees them. Assign a real bot opponent right here, the
@@ -173,16 +198,23 @@ export async function POST({ params, request, cookies }) {
 	if (contestNow.status !== 'live') {
 		const otherUserId =
 			contestNow.userAId === parsed.userId ? contestNow.userBId : contestNow.userAId;
-		const otherLineupExists = otherUserId
+		// Requires actual PICKS, not merely a lineup row. Checking only for the
+		// row let a half-written lineup count as "ready", so the contest would go
+		// live with one player holding nothing — they'd score 0 and lose a match
+		// they never played. The transaction above should prevent that state
+		// arising at all now; this is the second line of defence, and it also
+		// covers rows already corrupted before the fix.
+		const otherLineupReady = otherUserId
 			? await db
-					.select({ id: lineups.id })
-					.from(lineups)
+					.select({ id: lineupPicks.id })
+					.from(lineupPicks)
+					.innerJoin(lineups, eq(lineups.id, lineupPicks.lineupId))
 					.where(and(eq(lineups.contestId, contestId), eq(lineups.userId, otherUserId)))
 					.limit(1)
 					.then((rows) => rows.length > 0)
 			: false;
 
-		if (otherLineupExists) {
+		if (otherLineupReady) {
 			const durationMinutes = contestNow.durationMinutes ?? DEFAULT_DURATION_MINUTES;
 			const startAt = new Date();
 			const endAt = new Date(startAt.getTime() + durationMinutes * 60 * 1000);

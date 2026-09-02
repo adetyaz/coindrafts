@@ -211,8 +211,8 @@
 			<div class="mt-4 text-[28px] font-black tracking-[-0.03em]">Waiting for your opponent</div>
 			<p class="mt-3 text-[15px] text-text-muted">
 				Your lineup is locked in. The clock hasn't started — it only begins once
-				{live?.opponent?.name ?? 'they'} lock theirs too, so neither of you loses draft time waiting
-				on the other.
+				{live?.opponent?.name ?? 'they'} lock theirs too, so neither of you loses draft time waiting on
+				the other.
 			</p>
 		</div>
 	{:else if phase === 'error'}
@@ -235,13 +235,17 @@
 					>Ready</span
 				>
 				{#if live?.isPaper}
-					<span class="rounded-full bg-black/10 px-2.5 py-1 text-[10px] font-bold uppercase">Scrimmage</span>
+					<span class="rounded-full bg-black/10 px-2.5 py-1 text-[10px] font-bold uppercase"
+						>Scrimmage</span
+					>
 				{/if}
 			</div>
-			<div class="mt-4 text-[52px] leading-[0.94] font-black tracking-[-0.045em] max-sm:text-[34px]">
+			<div
+				class="mt-4 text-[52px] leading-[0.94] font-black tracking-[-0.045em] max-sm:text-[34px]"
+			>
 				{live?.me?.name ?? 'You'} vs {live?.opponent?.name ?? 'Opponent'}
 			</div>
-			<p class="mt-3 max-w-[52ch] text-[15px] opacity-80">
+			<p class="mt-3 text-[15px] opacity-80">
 				Both lineups are locked at their entry prices. From here it's decided by the market —
 				whoever's five move furthest, wins.
 			</p>
@@ -249,19 +253,25 @@
 			<div class="mt-8 flex flex-wrap gap-9">
 				<div>
 					<div class="font-mono text-[34px] leading-none font-bold tracking-[-0.03em]">{clock}</div>
-					<div class="mt-2 text-[10px] font-extrabold tracking-[0.1em] uppercase opacity-70">Time left</div>
+					<div class="mt-2 text-[10px] font-extrabold tracking-[0.1em] uppercase opacity-70">
+						Time left
+					</div>
 				</div>
 				<div>
 					<div class="font-mono text-[34px] leading-none font-bold tracking-[-0.03em]">
 						{durationLabel(live?.durationMinutes)}
 					</div>
-					<div class="mt-2 text-[10px] font-extrabold tracking-[0.1em] uppercase opacity-70">Duration</div>
+					<div class="mt-2 text-[10px] font-extrabold tracking-[0.1em] uppercase opacity-70">
+						Duration
+					</div>
 				</div>
 				<div>
 					<div class="font-mono text-[34px] leading-none font-bold tracking-[-0.03em]">
-						{(live?.me?.picks.length ?? 0)} v {(live?.opponent?.picks.length ?? 0)}
+						{live?.me?.picks.length ?? 0} v {live?.opponent?.picks.length ?? 0}
 					</div>
-					<div class="mt-2 text-[10px] font-extrabold tracking-[0.1em] uppercase opacity-70">Picks</div>
+					<div class="mt-2 text-[10px] font-extrabold tracking-[0.1em] uppercase opacity-70">
+						Picks
+					</div>
 				</div>
 			</div>
 
@@ -295,12 +305,17 @@
 									<TokenIcon symbol={p.symbol} size={30} bg={th.color} fg="var(--color-ink)" />
 									<div class="min-w-0 flex-1">
 										<div class="text-sm font-extrabold">{p.symbol.toUpperCase()}</div>
-										<div class="text-[10px] font-extrabold tracking-[0.1em] uppercase" style="color:{th.ink}">
+										<div
+											class="text-[10px] font-extrabold tracking-[0.1em] uppercase"
+											style="color:{th.ink}"
+										>
 											{th.label}
 										</div>
 									</div>
 									<span class="font-mono text-xs text-text-muted">
-										{p.entryPrice > 0 ? `$${p.entryPrice < 1 ? p.entryPrice.toPrecision(3) : p.entryPrice.toFixed(2)}` : '—'}
+										{p.entryPrice > 0
+											? `$${p.entryPrice < 1 ? p.entryPrice.toPrecision(3) : p.entryPrice.toFixed(2)}`
+											: '—'}
 									</span>
 								</div>
 							{/each}
@@ -325,18 +340,26 @@
 				<div>
 					<div
 						class="font-mono text-[28px] leading-none font-bold"
-						style="color:{(live?.me?.totalPct ?? 0) >= 0 ? 'var(--color-mint-ink)' : 'var(--color-red-ink)'}"
+						style="color:{(live?.me?.totalPct ?? 0) >= 0
+							? 'var(--color-mint-ink)'
+							: 'var(--color-red-ink)'}"
 					>
 						{(live?.me?.totalPct ?? 0) >= 0 ? '+' : ''}{(live?.me?.totalPct ?? 0).toFixed(2)}%
 					</div>
-					<div class="mt-1.5 text-[10px] font-extrabold tracking-[0.1em] text-text-muted uppercase">You</div>
+					<div class="mt-1.5 text-[10px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+						You
+					</div>
 				</div>
 				<div>
 					<div
 						class="font-mono text-[28px] leading-none font-bold opacity-70"
-						style="color:{(live?.opponent?.totalPct ?? 0) >= 0 ? 'var(--color-mint-ink)' : 'var(--color-red-ink)'}"
+						style="color:{(live?.opponent?.totalPct ?? 0) >= 0
+							? 'var(--color-mint-ink)'
+							: 'var(--color-red-ink)'}"
 					>
-						{(live?.opponent?.totalPct ?? 0) >= 0 ? '+' : ''}{(live?.opponent?.totalPct ?? 0).toFixed(2)}%
+						{(live?.opponent?.totalPct ?? 0) >= 0 ? '+' : ''}{(
+							live?.opponent?.totalPct ?? 0
+						).toFixed(2)}%
 					</div>
 					<div class="mt-1.5 text-[10px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
 						{live?.opponent?.name ?? 'Opponent'}
@@ -346,7 +369,9 @@
 		</div>
 
 		{#if series.length < 2}
-			<div class="grid h-[380px] place-items-center rounded-[24px] border border-border bg-surface text-center">
+			<div
+				class="grid h-[380px] place-items-center rounded-[24px] border border-border bg-surface text-center"
+			>
 				<div>
 					<p class="text-sm font-bold text-text">Waiting for the first ticks…</p>
 					<p class="mt-2 text-[13px] text-text-muted">
@@ -359,10 +384,24 @@
 		{/if}
 
 		<div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 px-1 text-[11px] text-text-muted">
-			<span><span class="mr-1.5 inline-block h-0.5 w-5 align-middle" style="background:var(--color-text)"></span>Solid = your picks</span>
-			<span><span class="mr-1.5 inline-block h-0.5 w-5 align-middle opacity-45" style="background:var(--color-text)"></span>Dashed = opponent</span>
+			<span
+				><span
+					class="mr-1.5 inline-block h-0.5 w-5 align-middle"
+					style="background:var(--color-text)"
+				></span>Solid = your picks</span
+			>
+			<span
+				><span
+					class="mr-1.5 inline-block h-0.5 w-5 align-middle opacity-45"
+					style="background:var(--color-text)"
+				></span>Dashed = opponent</span
+			>
 			{#if leader}
-				<span class="font-bold text-text">Leading: {leader.pick.symbol.toUpperCase()} ({lastVal(leader.key) >= 0 ? '+' : ''}{lastVal(leader.key).toFixed(2)}%)</span>
+				<span class="font-bold text-text"
+					>Leading: {leader.pick.symbol.toUpperCase()} ({lastVal(leader.key) >= 0
+						? '+'
+						: ''}{lastVal(leader.key).toFixed(2)}%)</span
+				>
 			{/if}
 		</div>
 
@@ -377,7 +416,10 @@
 					<TokenIcon symbol={r.pick.symbol} size={30} bg={th.color} fg="var(--color-ink)" />
 					<div class="min-w-0 flex-1">
 						<div class="truncate text-sm font-extrabold">{r.pick.symbol.toUpperCase()}</div>
-						<div class="text-[10px] font-extrabold tracking-[0.1em] uppercase" style="color:{th.ink}">
+						<div
+							class="text-[10px] font-extrabold tracking-[0.1em] uppercase"
+							style="color:{th.ink}"
+						>
 							{r.mine ? 'You' : (live?.opponent?.name ?? 'Opponent')} · {th.label}
 						</div>
 					</div>
@@ -392,8 +434,8 @@
 
 		<p class="mt-5 text-center text-[12px] text-text-muted">
 			Prices are sampled every {SAMPLE_SECONDS}s and stored, so the race survives a refresh and both
-			players see the same line. Results are always scored from locked entry prices, never from
-			this graph.
+			players see the same line. Results are always scored from locked entry prices, never from this
+			graph.
 		</p>
 	{/if}
 </div>

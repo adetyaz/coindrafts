@@ -123,7 +123,10 @@
 		}
 	}
 
-	async function createContest(type: 'daily' | 'weekly' = 'daily', mode: 'real' | 'paper' = 'real') {
+	async function createContest(
+		type: 'daily' | 'weekly' = 'daily',
+		mode: 'real' | 'paper' = 'real'
+	) {
 		actionError = '';
 		try {
 			const res = await fetch('/api/contests', {
@@ -170,9 +173,13 @@
 
 <div class="mx-auto max-w-[1360px] px-7 pt-7 pb-18">
 	<div class="mb-4.5 flex flex-wrap items-start gap-4.5">
-		<div class="hero-coral dot-grid flex min-w-0 flex-[1_1_520px] flex-col gap-7 rounded-[24px] p-9">
+		<div
+			class="hero-coral dot-grid flex min-w-0 flex-[1_1_520px] flex-col gap-7 rounded-[24px] p-9"
+		>
 			<div class="flex flex-wrap items-start justify-between gap-4">
-				<span class="rounded-full bg-text px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary uppercase">
+				<span
+					class="rounded-full bg-text px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary uppercase"
+				>
 					{resolvedContests.length > 0 ? `${winRate}% win rate` : 'New player'}
 				</span>
 				{#if contests.filter((c) => c.status !== 'resolved').length > 0}
@@ -182,10 +189,10 @@
 				{/if}
 			</div>
 			<div>
-				<div class="max-w-[14ch] text-[46px] leading-[0.95] font-black tracking-[-0.045em] max-sm:text-[34px]">
+				<div class="text-[46px] leading-[0.95] font-black tracking-[-0.045em] max-sm:text-[34px]">
 					{contests.length === 0 ? 'Draft your first lineup' : 'Ready for your next contest'}
 				</div>
-				<p class="mt-3.5 max-w-[46ch] text-[15px] opacity-80">
+				<p class="mt-3.5 text-[15px] opacity-80">
 					{contests.length === 0
 						? 'Five sectors, one token each, twenty-four hours to prove your read.'
 						: `${resolvedContests.length} contest${resolvedContests.length === 1 ? '' : 's'} resolved so far this season.`}
@@ -226,7 +233,11 @@
 
 		<div class="flex min-w-0 flex-[1_1_280px] flex-col gap-3.5">
 			<div class="grid grid-cols-2 gap-4.5 rounded-[20px] border border-border bg-surface p-[22px]">
-				<StatBlock value={resolvedContests.length > 0 ? `${winRate}%` : '—'} label="Win rate" color="var(--color-mint-ink)" />
+				<StatBlock
+					value={resolvedContests.length > 0 ? `${winRate}%` : '—'}
+					label="Win rate"
+					color="var(--color-mint-ink)"
+				/>
 				<StatBlock value={String(resolvedContests.length)} label="Resolved" />
 			</div>
 		</div>
@@ -259,7 +270,8 @@
 							</div>
 							<span
 								class="w-12 text-right font-mono text-xs font-bold"
-								style="color:{chg >= 0 ? 'var(--color-mint-ink)' : 'var(--color-red-ink)'}">{formatPct(chg)}</span
+								style="color:{chg >= 0 ? 'var(--color-mint-ink)' : 'var(--color-red-ink)'}"
+								>{formatPct(chg)}</span
 							>
 						</div>
 					{/each}
@@ -270,7 +282,9 @@
 		<div class="min-w-0 flex-[1_1_340px] rounded-[20px] border border-border bg-surface p-[22px]">
 			<div class="mb-4.5 flex items-center gap-2">
 				<span class="anim-blink h-[7px] w-[7px] rounded-full bg-negative"></span>
-				<span class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Whale flow</span>
+				<span class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase"
+					>Whale flow</span
+				>
 			</div>
 			{#if alerts.length === 0}
 				<p class="text-xs text-text-muted">No active alerts right now.</p>
@@ -294,8 +308,12 @@
 
 	<div class="mb-4.5 rounded-[20px] border border-border bg-surface p-[22px]">
 		<div class="mb-4.5 flex items-center justify-between">
-			<div class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Badges</div>
-			<span class="font-mono text-xs text-text-muted">{badges.filter((b) => b.earned).length}/{badges.length} unlocked</span>
+			<div class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+				Badges
+			</div>
+			<span class="font-mono text-xs text-text-muted"
+				>{badges.filter((b) => b.earned).length}/{badges.length} unlocked</span
+			>
 		</div>
 		<div class="flex flex-wrap gap-2.5">
 			{#each badges as badge (badge.code)}
@@ -309,8 +327,9 @@
 					<span class="text-base {badge.earned ? '' : 'grayscale'}">{badge.emoji}</span>
 					<span
 						class="text-xs font-bold"
-						style={badge.earned ? 'color:var(--color-primary-ink)' : 'color:var(--color-text-muted)'}
-						>{badge.name}</span
+						style={badge.earned
+							? 'color:var(--color-primary-ink)'
+							: 'color:var(--color-text-muted)'}>{badge.name}</span
 					>
 				</div>
 			{/each}
@@ -320,7 +339,9 @@
 	<div class="mb-4.5 flex flex-wrap gap-4.5">
 		<div class="min-w-0 flex-[1_1_340px] rounded-[20px] border border-border bg-surface p-[22px]">
 			<div class="mb-4.5 flex items-center justify-between">
-				<div class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Hot tokens</div>
+				<div class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+					Hot tokens
+				</div>
 			</div>
 			{#if loading}
 				<p class="text-xs text-text-muted">Loading tokens…</p>
@@ -353,8 +374,9 @@
 								{#if token.change24h != null}
 									<span
 										class="font-mono text-[11px] font-bold"
-										style="color:{token.change24h >= 0 ? 'var(--color-mint-ink)' : 'var(--color-red-ink)'}"
-										>{formatPct(token.change24h)}</span
+										style="color:{token.change24h >= 0
+											? 'var(--color-mint-ink)'
+											: 'var(--color-red-ink)'}">{formatPct(token.change24h)}</span
 									>
 								{/if}
 							</div>
@@ -370,7 +392,9 @@
 		</div>
 
 		<div class="min-w-0 flex-[1_1_340px] rounded-[20px] border border-border bg-surface p-[22px]">
-			<div class="mb-4.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Scout report</div>
+			<div class="mb-4.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+				Scout report
+			</div>
 			{#if loading}
 				<p class="text-xs text-text-muted">Loading news…</p>
 			{:else if news.length === 0}
@@ -395,7 +419,9 @@
 
 	<div class="rounded-[20px] border border-border bg-surface p-[22px]">
 		<div class="mb-4.5 flex flex-wrap items-center justify-between gap-3">
-			<div class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">My contests</div>
+			<div class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+				My contests
+			</div>
 			<div class="flex gap-2">
 				<button
 					class="cursor-pointer rounded-full bg-primary-muted px-3.5 py-1.5 text-xs font-bold text-primary-ink"
@@ -426,7 +452,8 @@
 					<div class="flex flex-wrap items-center justify-between gap-2.5 py-3">
 						<div class="flex flex-wrap items-center gap-2.5">
 							{#if c.status === 'resolved'}
-								<span class="rounded-full bg-surface-alt px-2.5 py-1 text-[10px] font-bold text-text-muted uppercase"
+								<span
+									class="rounded-full bg-surface-alt px-2.5 py-1 text-[10px] font-bold text-text-muted uppercase"
 									>Resolved</span
 								>
 							{:else if c.status === 'live'}
@@ -437,17 +464,23 @@
 							{:else}
 								<span
 									class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
-									style="background:rgba(247,201,120,0.16);color:var(--color-warning-ink)">Open</span
+									style="background:rgba(247,201,120,0.16);color:var(--color-warning-ink)"
+									>Open</span
 								>
 							{/if}
-							<span class="text-[13px] font-bold">{c.type === 'weekly' ? 'Weekly' : 'Daily'} Contest</span>
+							<span class="text-[13px] font-bold"
+								>{c.type === 'weekly' ? 'Weekly' : 'Daily'} Contest</span
+							>
 							{#if c.isPaper}
 								<span
 									class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
-									style="background:rgba(104,194,168,0.14);color:var(--color-mint-ink)">Scrimmage</span
+									style="background:rgba(104,194,168,0.14);color:var(--color-mint-ink)"
+									>Scrimmage</span
 								>
 							{/if}
-							<span class="font-mono text-[11px] text-text-muted">{String(c.id ?? '').slice(0, 8)}…</span>
+							<span class="font-mono text-[11px] text-text-muted"
+								>{String(c.id ?? '').slice(0, 8)}…</span
+							>
 						</div>
 						{#if c.status === 'resolved'}
 							<a
@@ -492,12 +525,16 @@
 							>
 							<span class="text-[13px] font-bold">
 								{#if l.tournamentId}
-									{l.tournamentName ?? 'Tournament'} &middot; {l.tournamentStage === 1 ? 'Final' : 'Qualifier'}
+									{l.tournamentName ?? 'Tournament'} &middot; {l.tournamentStage === 1
+										? 'Final'
+										: 'Qualifier'}
 								{:else}
 									Multiplayer lobby
 								{/if}
 							</span>
-							<span class="font-mono text-[11px] text-text-muted">{String(l.id ?? '').slice(0, 8)}…</span>
+							<span class="font-mono text-[11px] text-text-muted"
+								>{String(l.id ?? '').slice(0, 8)}…</span
+							>
 						</div>
 						{#if l.myLineupLocked}
 							<a

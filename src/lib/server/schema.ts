@@ -377,7 +377,9 @@ export const stakeParticipants = pgTable('stake_participants', {
 	committed: integer('committed'),
 	// Signed: positive for a win, negative for a loss. Written at settlement.
 	payout: integer('payout'),
-	// Required before any amount can be set (G-03 AC 1).
+	// Required before any amount can be set (G-03 AC 1). A self-report the
+	// server takes on trust — making it a wallet-signed attestation is tracked
+	// in docs-project/whats-next.md.
 	confirmedAdult: boolean('confirmed_adult').default(false),
 	committedAt: timestamp('committed_at')
 });

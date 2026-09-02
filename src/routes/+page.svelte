@@ -4,6 +4,7 @@
 	import { appKit } from '$lib/appkit';
 	import { sectorTheme } from '$lib/sectorTheme';
 	import { classifySector } from '$lib/sectors';
+	import { resolve } from '$app/paths';
 
 	const appkitReady = Boolean(appKit);
 
@@ -40,18 +41,23 @@
 			const s = classifySector([t.symbol]);
 			(bySector[s] ??= []).push(t);
 		}
-		return ['l1', 'l2', 'defi'].map((sector) => {
-			const pick = bySector[sector]?.[0];
-			return {
-				sector,
-				ticker: pick?.symbol?.toUpperCase() ?? '',
-				change: pick?.change24h != null ? `${pick.change24h >= 0 ? '+' : ''}${pick.change24h.toFixed(1)}%` : '',
-				filled: Boolean(pick)
-			};
-		}).concat([
-			{ sector: 'meme', ticker: '', change: '', filled: false },
-			{ sector: 'wildcard', ticker: '', change: '', filled: false }
-		]);
+		return ['l1', 'l2', 'defi']
+			.map((sector) => {
+				const pick = bySector[sector]?.[0];
+				return {
+					sector,
+					ticker: pick?.symbol?.toUpperCase() ?? '',
+					change:
+						pick?.change24h != null
+							? `${pick.change24h >= 0 ? '+' : ''}${pick.change24h.toFixed(1)}%`
+							: '',
+					filled: Boolean(pick)
+				};
+			})
+			.concat([
+				{ sector: 'meme', ticker: '', change: '', filled: false },
+				{ sector: 'wildcard', ticker: '', change: '', filled: false }
+			]);
 	});
 
 	const STEPS = [
@@ -82,12 +88,13 @@
 		},
 		{
 			id: 'l2',
-			blurb: 'Rollups trade on fee news and little else. A timing sector: the right pick on the wrong day still loses.'
+			blurb:
+				'Rollups trade on fee news and little else. A timing sector: the right pick on the wrong day still loses.'
 		},
 		{
 			id: 'defi',
 			blurb:
-				"Governance tokens follow deposits with a lag. The sector that rewards reading flows before they show up in price."
+				'Governance tokens follow deposits with a lag. The sector that rewards reading flows before they show up in price.'
 		},
 		{
 			id: 'meme',
@@ -96,7 +103,8 @@
 		},
 		{
 			id: 'wildcard',
-			blurb: 'Everything that fits nowhere else — infra, compute, oracles. Thin liquidity, sharp moves, frequent upsets.'
+			blurb:
+				'Everything that fits nowhere else — infra, compute, oracles. Thin liquidity, sharp moves, frequent upsets.'
 		}
 	];
 
@@ -165,7 +173,9 @@
 					{stats ? `${fmt(stats.liveContests)} contests live` : 'Live market drafting'}
 				</div>
 
-				<h1 class="text-[72px] leading-[0.9] font-black tracking-[-0.05em] max-lg:text-[52px] max-md:text-[38px]">
+				<h1
+					class="text-[72px] leading-[0.9] font-black tracking-[-0.05em] max-lg:text-[52px] max-md:text-[38px]"
+				>
 					Draft coins.
 				</h1>
 				<h1
@@ -173,7 +183,7 @@
 				>
 					Beat people.
 				</h1>
-				<p class="mt-6.5 max-w-[46ch] text-lg leading-relaxed text-text-muted max-md:text-base">
+				<p class="mt-6.5 text-lg leading-relaxed text-text-muted max-md:text-base">
 					One token per sector, five sectors, twenty-four hours. No leverage, no liquidations — your
 					read against theirs, scored on relative return.
 				</p>
@@ -181,7 +191,7 @@
 				<div class="mt-8 flex flex-wrap items-center gap-3">
 					{#if page.data.user}
 						<a
-							href="/dashboard"
+							href={resolve('/dashboard')}
 							class="inline-flex h-13 cursor-pointer items-center gap-2 rounded-full bg-primary px-8 text-sm font-extrabold text-text no-underline shadow-[0_14px_44px_rgba(247,142,121,0.34)] transition hover:-translate-y-0.5 hover:bg-primary-hover"
 						>
 							Go to dashboard &rarr;
@@ -191,7 +201,7 @@
 							<appkit-button></appkit-button>
 						</div>
 						<a
-							href="/dashboard"
+							href={resolve('/dashboard')}
 							class="inline-flex h-13 cursor-pointer items-center gap-2 rounded-full border border-border bg-surface px-8 text-sm font-bold text-text-muted no-underline transition hover:border-primary"
 						>
 							Watch a live contest
@@ -219,14 +229,17 @@
 							<div class="-ml-2.5 h-7.5 w-7.5 rounded-full border-2 border-bg bg-primary"></div>
 						</div>
 						<span class="text-[13px] text-text-muted">
-							{fmt(stats.players)} {stats.players === 1 ? 'player has' : 'players have'} joined
+							{fmt(stats.players)}
+							{stats.players === 1 ? 'player has' : 'players have'} joined
 						</span>
 					</div>
 				{/if}
 			</div>
 
 			<div class="relative min-w-0 flex-[1_1_400px]">
-				<div class="anim-float relative overflow-hidden rounded-3xl border border-border bg-surface-alt shadow-[0_40px_90px_rgba(26,36,33,0.18)]">
+				<div
+					class="anim-float relative overflow-hidden rounded-3xl border border-border bg-surface-alt shadow-[0_40px_90px_rgba(26,36,33,0.18)]"
+				>
 					<div class="flex items-center gap-1.5 border-b border-border px-4 py-3.5">
 						<div class="h-2.5 w-2.5 rounded-full bg-border"></div>
 						<div class="h-2.5 w-2.5 rounded-full bg-border"></div>
@@ -234,7 +247,9 @@
 						<span class="ml-2.5 font-mono text-[10px] text-text-muted">coindraft.app/draft</span>
 					</div>
 					<div class="p-5.5">
-						<div class="mb-4 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+						<div
+							class="mb-4 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase"
+						>
 							Your lineup &middot; locks in 00:42
 						</div>
 						<div class="flex flex-col gap-2.5">
@@ -255,18 +270,25 @@
 										{slot.filled ? slot.ticker.charAt(0) : '+'}
 									</div>
 									<div class="min-w-0 flex-1">
-										<div class="text-[15px] font-extrabold" style={slot.filled ? '' : 'color:var(--color-text-muted)'}>
+										<div
+											class="text-[15px] font-extrabold"
+											style={slot.filled ? '' : 'color:var(--color-text-muted)'}
+										>
 											{slot.filled ? slot.ticker : 'Empty'}
 										</div>
-										<div class="text-[10px] font-extrabold tracking-[0.1em] uppercase" style="color:{theme.ink}">
+										<div
+											class="text-[10px] font-extrabold tracking-[0.1em] uppercase"
+											style="color:{theme.ink}"
+										>
 											{theme.label}
 										</div>
 									</div>
 									{#if slot.filled}
 										<span
 											class="font-mono text-xs"
-											style="color:{slot.change.startsWith('-') ? 'var(--color-red-ink)' : 'var(--color-mint-ink)'}"
-											>{slot.change}</span
+											style="color:{slot.change.startsWith('-')
+												? 'var(--color-red-ink)'
+												: 'var(--color-mint-ink)'}">{slot.change}</span
 										>
 									{/if}
 								</div>
@@ -290,7 +312,11 @@
 					{#each [...tokens.slice(0, 12), ...tokens.slice(0, 12)] as t, i (i)}
 						<span class="font-mono text-xs whitespace-nowrap text-text-muted">
 							{t.symbol?.toUpperCase()}
-							<span style="color:{(t.change24h ?? 0) >= 0 ? 'var(--color-mint-ink)' : 'var(--color-red-ink)'}">
+							<span
+								style="color:{(t.change24h ?? 0) >= 0
+									? 'var(--color-mint-ink)'
+									: 'var(--color-red-ink)'}"
+							>
 								{(t.change24h ?? 0) >= 0 ? '+' : ''}{(t.change24h ?? 0).toFixed(1)}%
 							</span>
 						</span>
@@ -304,14 +330,16 @@
 		<div class="mx-auto max-w-5xl">
 			<div class="mb-10 flex flex-wrap items-end justify-between gap-6">
 				<div>
-					<p class="mb-3.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary-ink uppercase">
+					<p
+						class="mb-3.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary-ink uppercase"
+					>
 						01 &mdash; The format
 					</p>
-					<h2 class="max-w-[16ch] text-[46px] leading-[0.95] font-black tracking-[-0.045em] max-md:text-[30px]">
+					<h2 class=" text-[46px] leading-[0.95] font-black tracking-[-0.045em] max-md:text-[30px]">
 						Three minutes to enter. A day to find out.
 					</h2>
 				</div>
-				<p class="max-w-[34ch] text-[15px] leading-relaxed text-text-muted">
+				<p class="text-[15px] leading-relaxed text-text-muted">
 					Contests settle on relative sector return, so a flat market still produces a winner.
 				</p>
 			</div>
@@ -321,7 +349,7 @@
 					<div class="border-r border-border py-8.5 pr-7 last:border-r-0">
 						<div class="mb-6.5 font-mono text-sm font-bold text-primary-ink">{step.num}</div>
 						<h3 class="mb-3 text-2xl font-extrabold tracking-[-0.03em]">{step.title}</h3>
-						<p class="max-w-[32ch] text-sm leading-relaxed text-text-muted">{step.desc}</p>
+						<p class="text-sm leading-relaxed text-text-muted">{step.desc}</p>
 					</div>
 				{/each}
 			</div>
@@ -330,10 +358,12 @@
 
 	<section class="bg-bg px-6 py-20 max-md:py-14">
 		<div class="mx-auto max-w-5xl">
-			<p class="mb-3.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary-ink uppercase">
+			<p
+				class="mb-3.5 font-mono text-[11px] font-bold tracking-[0.14em] text-primary-ink uppercase"
+			>
 				02 &mdash; The board
 			</p>
-			<h2 class="mb-7 max-w-[18ch] text-[46px] leading-[0.95] font-black tracking-[-0.045em] max-md:text-[30px]">
+			<h2 class="mb-7 text-[46px] leading-[0.95] font-black tracking-[-0.045em] max-md:text-[30px]">
 				Five sectors. Five very different games.
 			</h2>
 
@@ -359,26 +389,36 @@
 			>
 				<div class="flex flex-wrap items-center gap-10">
 					<div class="min-w-0 flex-[1_1_300px]">
-						<div class="mb-3.5 text-4xl leading-tight font-black tracking-[-0.04em]">{curTheme.label}</div>
-						<p class="max-w-[38ch] text-[15px] leading-relaxed opacity-75">{curSector.blurb}</p>
+						<div class="mb-3.5 text-4xl leading-tight font-black tracking-[-0.04em]">
+							{curTheme.label}
+						</div>
+						<p class="text-[15px] leading-relaxed opacity-75">{curSector.blurb}</p>
 						<div class="mt-7 flex gap-6.5">
 							<div>
 								<div class="font-mono text-[26px] font-bold">{sectorTokens.length || '—'}</div>
-								<div class="text-[10px] font-extrabold tracking-[0.1em] opacity-60 uppercase">Tokens</div>
+								<div class="text-[10px] font-extrabold tracking-[0.1em] uppercase opacity-60">
+									Tokens
+								</div>
 							</div>
 							<div>
 								<div class="font-mono text-[26px] font-bold">{curSectorSwing}</div>
-								<div class="text-[10px] font-extrabold tracking-[0.1em] opacity-60 uppercase">Avg 24h move</div>
+								<div class="text-[10px] font-extrabold tracking-[0.1em] uppercase opacity-60">
+									Avg 24h move
+								</div>
 							</div>
 						</div>
 					</div>
-					<div class="grid min-w-0 flex-[1_1_340px] grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
+					<div
+						class="grid min-w-0 flex-[1_1_340px] grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5"
+					>
 						{#if sectorTokens.length === 0}
 							<p class="text-[13px] opacity-70">Live prices unavailable right now.</p>
 						{:else}
 							{#each sectorTokens.slice(0, 4) as t (t.symbol)}
 								<div class="flex items-center justify-between gap-2.5 rounded-2xl bg-black/5 p-4">
-									<span class="text-base font-black tracking-[-0.02em]">{t.symbol?.toUpperCase()}</span>
+									<span class="text-base font-black tracking-[-0.02em]"
+										>{t.symbol?.toUpperCase()}</span
+									>
 									<span class="font-mono text-xs opacity-70">{priceFmt(t.price)}</span>
 								</div>
 							{/each}
@@ -391,22 +431,36 @@
 
 	<section class="bg-bg px-6 py-20 max-md:py-14">
 		<div class="mx-auto max-w-5xl">
-			<div class="grid grid-cols-4 gap-0 overflow-hidden rounded-[20px] border border-border max-sm:grid-cols-2">
+			<div
+				class="grid grid-cols-4 gap-0 overflow-hidden rounded-[20px] border border-border max-sm:grid-cols-2"
+			>
 				<div class="border-r border-border bg-surface p-6.5 max-sm:[&:nth-child(2)]:border-r-0">
-					<div class="font-mono text-[34px] font-bold tracking-[-0.03em]">{stats ? fmt(stats.players) : '—'}</div>
-					<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Players</div>
+					<div class="font-mono text-[34px] font-bold tracking-[-0.03em]">
+						{stats ? fmt(stats.players) : '—'}
+					</div>
+					<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+						Players
+					</div>
 				</div>
 				<div class="border-r border-border bg-surface p-6.5 max-sm:[&:nth-child(2)]:border-r-0">
-					<div class="font-mono text-[34px] font-bold tracking-[-0.03em]">{stats ? fmt(stats.liveContests) : '—'}</div>
-					<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Live contests</div>
+					<div class="font-mono text-[34px] font-bold tracking-[-0.03em]">
+						{stats ? fmt(stats.liveContests) : '—'}
+					</div>
+					<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+						Live contests
+					</div>
 				</div>
 				<div class="border-r border-border bg-surface p-6.5">
 					<div class="font-mono text-[34px] font-bold tracking-[-0.03em]">5</div>
-					<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Sectors per lineup</div>
+					<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+						Sectors per lineup
+					</div>
 				</div>
 				<div class="bg-surface p-6.5">
 					<div class="font-mono text-[34px] font-bold tracking-[-0.03em]">24H</div>
-					<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Contest length</div>
+					<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+						Contest length
+					</div>
 				</div>
 			</div>
 		</div>
@@ -414,16 +468,20 @@
 
 	<section class="bg-surface px-6 py-20 text-center max-md:py-14">
 		<div class="mx-auto max-w-2xl">
-			<h2 class="mb-3 text-[38px] font-black tracking-[-0.03em] max-md:text-[28px]">Ready to draft?</h2>
-			<p class="mb-8 text-[15px] text-text-muted">Free to play. Your first contest takes about two minutes.</p>
+			<h2 class="mb-3 text-[38px] font-black tracking-[-0.03em] max-md:text-[28px]">
+				Ready to draft?
+			</h2>
+			<p class="mb-8 text-[15px] text-text-muted">
+				Free to play. Your first contest takes about two minutes.
+			</p>
 			<div class="flex flex-wrap justify-center gap-3">
 				<a
-					href="/dashboard"
+					href={resolve('/dashboard')}
 					class="inline-flex h-13 items-center rounded-full bg-primary px-8 text-sm font-extrabold text-text no-underline transition hover:-translate-y-0.5 hover:bg-primary-hover"
 					>Start drafting</a
 				>
 				<a
-					href="/leaderboard"
+					href={resolve('/leaderboard')}
 					class="inline-flex h-13 items-center rounded-full border border-border bg-transparent px-8 text-sm font-bold text-text-muted no-underline transition hover:bg-hover"
 					>View leaderboard</a
 				>
@@ -437,22 +495,31 @@
 				<div class="min-w-0 flex-[1_1_280px]">
 					<div class="mb-3.5 flex items-center gap-2.5">
 						<span class="relative h-6 w-6 shrink-0">
-							<span class="absolute inset-0 rounded-md bg-primary" style="transform:rotate(45deg)"></span>
-							<span class="absolute top-2 left-2 h-2 w-2 rounded-[2px] bg-text" style="transform:rotate(45deg)"
+							<span class="absolute inset-0 rounded-md bg-primary" style="transform:rotate(45deg)"
+							></span>
+							<span
+								class="absolute top-2 left-2 h-2 w-2 rounded-[2px] bg-text"
+								style="transform:rotate(45deg)"
 							></span>
 						</span>
 						<span class="text-lg font-black tracking-[-0.03em]">CoinDraft</span>
 					</div>
-					<p class="max-w-[32ch] text-[13px] text-text-muted">
+					<p class="text-[13px] text-text-muted">
 						Fantasy drafting for crypto markets. Play money, real reads.
 					</p>
 				</div>
 				{#each FOOTER_COLS as col (col.title)}
 					<div class="min-w-0 flex-[1_1_140px]">
-						<div class="mb-3.5 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">{col.title}</div>
+						<div
+							class="mb-3.5 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase"
+						>
+							{col.title}
+						</div>
 						<div class="flex flex-col gap-2.5">
 							{#each col.links as link (link.href)}
-								<a href={link.href} class="text-[13px] text-text-muted no-underline transition hover:text-primary-ink"
+								<a
+									href={resolve(link.href)}
+									class="text-[13px] text-text-muted no-underline transition hover:text-primary-ink"
 									>{link.label}</a
 								>
 							{/each}
@@ -461,8 +528,12 @@
 				{/each}
 			</div>
 			<div class="flex flex-wrap justify-between gap-3 pt-6">
-				<span class="font-mono text-[11px] text-text-muted">&copy; 2026 COINDRAFT &middot; NOT INVESTMENT ADVICE</span>
-				<a href="/guide" class="font-mono text-[11px] text-text-muted no-underline hover:text-primary-ink"
+				<span class="font-mono text-[11px] text-text-muted"
+					>&copy; 2026 COINDRAFT &middot; NOT INVESTMENT ADVICE</span
+				>
+				<a
+					href={resolve('/guide')}
+					class="font-mono text-[11px] text-text-muted no-underline hover:text-primary-ink"
 					>HOW IT WORKS &rarr;</a
 				>
 			</div>

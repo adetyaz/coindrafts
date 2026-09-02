@@ -1,8 +1,8 @@
 import { db } from '$lib/server/db';
-import { gauntletQuestions, vocabPool, vocabPoolBatches } from '$lib/server/schema';
+import { gauntletQuestions, vocabPool, vocabPoolBatches, dailyTerms } from '$lib/server/schema';
 import { eq, sql } from 'drizzle-orm';
 import { createChatCompletion } from '$lib/server/aiCompute';
-import { env } from '$env/dynamic/private';
+import { ZG_STORAGE } from '$lib/server/zgNetwork';
 import { writeFile, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -600,11 +600,30 @@ export async function ensureVocabPoolReady(): Promise<void> {
 	await ensureVocabPool();
 }
 
-/** Deterministic per-day pick from the pool — same day always picks the same entry. */
+/**
+ * Deterministic per-day pick from the pool — same day always picks the same
+ * entry. Word of the Day (term-of-day.ts) draws from this same shared pool,
+ * so if today's Word of the Day has already been seeded, its term is
+ * excluded here — the two must never show the same term on the same day.
+ * The matching exclusion runs the other way in term-of-day.ts, so whichever
+ * of the two seeds second is the one that actually avoids a collision.
+ */
 async function pickFromVocabPool(dateStr: string): Promise<QuestionInput | null> {
 	const pool = await db.select().from(vocabPool);
 	if (pool.length === 0) return null;
-	const entry = pool[hashDate(dateStr) % pool.length];
+
+	const todaysTerm = await db
+		.select({ term: dailyTerms.term })
+		.from(dailyTerms)
+		.where(eq(dailyTerms.activeDate, sql`${dateStr}::date`))
+		.limit(1)
+		.then((rows) => rows[0]?.term ?? null);
+
+	const candidates = todaysTerm ? pool.filter((p) => p.term !== todaysTerm) : pool;
+	// Last resort if the pool is too small to exclude anything from — accept
+	// the rare collision rather than fail to seed a question at all.
+	const usable = candidates.length > 0 ? candidates : pool;
+	const entry = usable[hashDate(dateStr) % usable.length];
 	return {
 		question: entry.question,
 		options: entry.options as { label: string; value: string }[],
@@ -632,7 +651,7 @@ async function pickFromVocabPool(dateStr: string): Promise<QuestionInput | null>
  * as an actual knowledge-base artifact rather than a trickle of one-offs.
  */
 async function pushVocabBatchToStorage(batchId: string, items: VocabItem[]): Promise<void> {
-	const privateKey = env.ZG_STORAGE_PRIVATE_KEY;
+	const privateKey = ZG_STORAGE.privateKey;
 	if (!privateKey) return; // not configured — the key exists but the SDK isn't installed yet
 
 	// Lazy import: @0gfoundation/0g-storage-ts-sdk isn't installed yet (see
@@ -655,8 +674,16 @@ async function pushVocabBatchToStorage(batchId: string, items: VocabItem[]): Pro
 		console.error('[gauntlet] 0G Storage SDK not installed yet — skipping storage write for this batch');
 		return;
 	}
-	const rpcUrl = env.ZG_STORAGE_RPC_URL || 'https://evmrpc-testnet.0g.ai';
-	const indexerUrl = env.ZG_STORAGE_INDEXER_URL || 'https://indexer-storage-testnet-turbo.0g.ai';
+	const rpcUrl = ZG_STORAGE.rpcUrl;
+	const indexerUrl = ZG_STORAGE.indexerUrl;
+	if (!indexerUrl) {
+		// Mainnet's indexer URL has no hardcoded fallback (unlike testnet's) —
+		// deliberately, since a mainnet 0G Storage indexer address isn't
+		// something safe to guess. Same degrade-gracefully rule as `privateKey`
+		// above: skip this write, never block seeding.
+		console.error('[gauntlet] ZG_STORAGE_INDEXER_URL_MAINNET not set — skipping storage write for this batch');
+		return;
+	}
 
 	const tmpPath = join(tmpdir(), `coindraft-vocab-batch-${batchId}.json`);
 	await writeFile(

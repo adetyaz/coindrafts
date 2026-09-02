@@ -85,6 +85,10 @@ export async function commitToStake(
 
 	// G-03 AC 1 — 18+ before any amount can be set. Checked per player, since
 	// each commits separately.
+	//
+	// NOTE: this is a self-report, not evidence — the client asserts it and the
+	// server takes its word. Making it a wallet-signed attestation is tracked in
+	// docs-project/whats-next.md.
 	if (!confirmedAdult) return { ok: false as const, reason: 'age_not_confirmed' };
 
 	// You may raise above the tier, never below it — the tier is what both

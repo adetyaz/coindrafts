@@ -44,7 +44,7 @@
 		<h1 class="mt-3 text-[38px] leading-none font-black tracking-[-0.04em] max-sm:text-[28px]">
 			Play a bot, keep your rank
 		</h1>
-		<p class="mt-3 max-w-[48ch] text-[15px] text-text-muted">
+		<p class="mt-3 text-[15px] text-text-muted">
 			Draft against a bot opponent and earn Scrimmage XP. Same board, same scoring, same result
 			screen — but nothing here touches your real rank, win rate, or badges. No waiting for an
 			opponent: the bot drafts a full lineup the moment you lock yours.

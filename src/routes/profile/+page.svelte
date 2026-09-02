@@ -4,8 +4,10 @@
 	import type { BadgeDef } from '$lib/badges';
 	import { toast } from '$lib/toast';
 	import Toast from '$lib/components/Toast.svelte';
-	import { getEvmWalletProvider, ensureZeroGTestnet } from '$lib/evmWallet';
+	import { getEvmWalletProvider, ensureZeroGChain } from '$lib/evmWallet';
 	import { ACHIEVEMENTS_ABI } from '$lib/achievementsAbi';
+	import { badgeImagePath } from '$lib/achievementArt';
+	import { resolve } from '$app/paths';
 
 	type Me = { id: string; username: string; xpTotal: number; paperXpTotal: number; streak: number };
 	type Contest = Record<string, unknown>;
@@ -55,7 +57,7 @@
 			if (!wallet) throw new Error('Connect an EVM wallet to claim on-chain badges');
 
 			toast('Switching your wallet to 0G…', 'info');
-			await ensureZeroGTestnet(wallet.provider);
+			await ensureZeroGChain(wallet.provider);
 
 			const browserProvider = new ethers.BrowserProvider(wallet.provider as never);
 			const signer = await browserProvider.getSigner();
@@ -122,13 +124,16 @@
 			class="hero-coral dot-grid mb-4.5 flex flex-wrap items-center justify-between gap-6 rounded-[24px] p-9"
 		>
 			<div class="flex min-w-0 items-center gap-6">
-				<div class="grid h-[88px] w-[88px] shrink-0 place-items-center rounded-full bg-text text-3xl font-black text-primary">
+				<div
+					class="grid h-[88px] w-[88px] shrink-0 place-items-center rounded-full bg-text text-3xl font-black text-primary"
+				>
 					{me.username?.[0]?.toUpperCase() ?? '?'}
 				</div>
 				<div class="min-w-0">
 					<div class="mb-2 flex flex-wrap items-center gap-2.5">
 						{#if myRank != null}
-							<span class="rounded-full bg-text px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.12em] text-primary uppercase"
+							<span
+								class="rounded-full bg-text px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.12em] text-primary uppercase"
 								>Rank #{myRank}{totalPlayers ? ` of ${totalPlayers}` : ''}</span
 							>
 						{/if}
@@ -136,44 +141,69 @@
 							<span class="font-mono text-xs font-bold opacity-75">{me.streak} day streak</span>
 						{/if}
 					</div>
-					<div class="truncate text-[40px] leading-none font-black tracking-[-0.035em] max-sm:text-[28px]">
+					<div
+						class="truncate text-[40px] leading-none font-black tracking-[-0.035em] max-sm:text-[28px]"
+					>
 						@{me.username}
 					</div>
 				</div>
 			</div>
 		</div>
 
-		<div class="mb-4.5 grid grid-cols-5 gap-0 overflow-hidden rounded-[20px] border border-border max-sm:grid-cols-2">
+		<div
+			class="mb-4.5 grid grid-cols-5 gap-0 overflow-hidden rounded-[20px] border border-border max-sm:grid-cols-2"
+		>
 			<div class="border-r border-border bg-surface px-6 py-6.5 last:border-r-0">
 				<div class="font-mono text-[26px] font-bold tracking-[-0.03em]">{contests.length}</div>
-				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Contests</div>
+				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+					Contests
+				</div>
 			</div>
 			<div class="border-r border-border bg-surface px-6 py-6.5 last:border-r-0">
 				<div class="font-mono text-[26px] font-bold tracking-[-0.03em] text-positive-ink">
 					{winRate != null ? `${winRate}%` : '—'}
 				</div>
-				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Win rate</div>
+				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+					Win rate
+				</div>
 			</div>
 			<div class="border-r border-border bg-surface px-6 py-6.5 last:border-r-0">
-				<div class="font-mono text-[26px] font-bold tracking-[-0.03em]">{me.xpTotal.toLocaleString()}</div>
-				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Total XP</div>
+				<div class="font-mono text-[26px] font-bold tracking-[-0.03em]">
+					{me.xpTotal.toLocaleString()}
+				</div>
+				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+					Total XP
+				</div>
 			</div>
 			<div class="border-r border-border bg-surface px-6 py-6.5 last:border-r-0">
 				<div class="font-mono text-[26px] font-bold tracking-[-0.03em]">{me.streak}</div>
-				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Day streak</div>
+				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+					Day streak
+				</div>
 			</div>
-			<div class="bg-surface px-6 py-6.5" title="Earned from Scrimmage — never counts toward your real rank">
-				<div class="font-mono text-[26px] font-bold tracking-[-0.03em] text-positive-ink">{(me.paperXpTotal ?? 0).toLocaleString()}</div>
-				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">Scrimmage XP</div>
+			<div
+				class="bg-surface px-6 py-6.5"
+				title="Earned from Scrimmage — never counts toward your real rank"
+			>
+				<div class="font-mono text-[26px] font-bold tracking-[-0.03em] text-positive-ink">
+					{(me.paperXpTotal ?? 0).toLocaleString()}
+				</div>
+				<div class="mt-2 text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+					Scrimmage XP
+				</div>
 			</div>
 		</div>
 
 		<div class="flex flex-wrap gap-4.5">
-			<div class="min-w-0 flex-[1_1_520px] flex flex-col gap-4.5">
+			<div class="flex min-w-0 flex-[1_1_520px] flex-col gap-4.5">
 				<div class="rounded-[20px] border border-border bg-surface p-6">
 					<div class="mb-4.5 flex items-center justify-between">
-						<div class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Badge cabinet</div>
-						<span class="font-mono text-xs text-text-muted">{badges.filter((b) => b.earned).length} / {badges.length} earned</span>
+						<div class="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+							Badge cabinet
+						</div>
+						<span class="font-mono text-xs text-text-muted"
+							>{badges.filter((b) => b.earned).length} / {badges.length} earned</span
+						>
 					</div>
 					<div class="grid grid-cols-2 gap-3">
 						{#each badges as badge (badge.code)}
@@ -184,13 +214,22 @@
 									: 'background:var(--color-surface-alt);border:1px solid var(--color-border)'}
 							>
 								<div
-									class="grid h-9.5 w-9.5 shrink-0 place-items-center rounded-xl text-lg {badge.earned ? '' : 'grayscale'}"
-									style={badge.earned ? 'background:rgba(247,142,121,0.25)' : 'background:var(--color-surface)'}
+									class="grid h-9.5 w-9.5 shrink-0 place-items-center rounded-xl text-lg {badge.earned
+										? ''
+										: 'grayscale'}"
+									style={badge.earned
+										? 'background:rgba(247,142,121,0.25)'
+										: 'background:var(--color-surface)'}
 								>
 									{badge.emoji}
 								</div>
 								<div class="min-w-0">
-									<div class="text-sm font-extrabold" style={badge.earned ? 'color:var(--color-ink)' : 'color:var(--color-text-muted)'}>
+									<div
+										class="text-sm font-extrabold"
+										style={badge.earned
+											? 'color:var(--color-ink)'
+											: 'color:var(--color-text-muted)'}
+									>
 										{badge.name}
 									</div>
 									<div class="truncate text-[11px] text-text-muted">{badge.description}</div>
@@ -208,14 +247,26 @@
 							</div>
 						</div>
 						<p class="mb-4 text-[11px] text-text-muted">
-							You've earned these. Claiming mints it to your own wallet — you approve and pay the gas, it's genuinely yours.
+							You've earned these. Claiming mints it to your own wallet — you approve and pay the
+							gas, it's genuinely yours.
 						</p>
 						<div class="flex flex-col gap-2.5">
 							{#each claimable as a (a.typeId)}
-								<div class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface-alt p-4">
-									<div class="min-w-0">
-										<div class="text-sm font-extrabold">{a.name}</div>
-										<div class="text-[11px] text-text-muted">{a.description}</div>
+								<div
+									class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface-alt p-4"
+								>
+									<div class="flex min-w-0 items-center gap-3.5">
+										{#if badgeImagePath(a.typeId)}
+											<img
+												src={badgeImagePath(a.typeId)}
+												alt=""
+												class="h-14 w-14 shrink-0 rounded-xl"
+											/>
+										{/if}
+										<div class="min-w-0">
+											<div class="text-sm font-extrabold">{a.name}</div>
+											<div class="text-[11px] text-text-muted">{a.description}</div>
+										</div>
 									</div>
 									<button
 										disabled={claimingTypeId === a.typeId}
@@ -231,7 +282,11 @@
 				{/if}
 
 				<div class="rounded-[20px] border border-border bg-surface p-6">
-					<div class="mb-4.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Recent contests</div>
+					<div
+						class="mb-4.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase"
+					>
+						Recent contests
+					</div>
 					{#if contests.length === 0}
 						<p class="text-xs text-text-muted">No contests yet.</p>
 					{:else}
@@ -240,14 +295,27 @@
 								<div class="flex items-center justify-between gap-3 py-3">
 									<div class="flex items-center gap-2.5">
 										{#if c.status === 'resolved'}
-											<span class="rounded-full bg-surface-alt px-2.5 py-1 text-[10px] font-bold text-text-muted uppercase">Resolved</span>
+											<span
+												class="rounded-full bg-surface-alt px-2.5 py-1 text-[10px] font-bold text-text-muted uppercase"
+												>Resolved</span
+											>
 										{:else}
-											<span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase" style="background:rgba(247,201,120,0.16);color:var(--color-warning-ink)">Open</span>
+											<span
+												class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
+												style="background:rgba(247,201,120,0.16);color:var(--color-warning-ink)"
+												>Open</span
+											>
 										{/if}
-										<span class="text-[13px] font-bold">{c.type === 'weekly' ? 'Weekly' : 'Daily'} contest</span>
+										<span class="text-[13px] font-bold"
+											>{c.type === 'weekly' ? 'Weekly' : 'Daily'} contest</span
+										>
 									</div>
 									{#if c.status === 'resolved'}
-										<a href={`/contest/result?contestId=${c.id}`} class="text-xs font-bold text-primary-ink no-underline hover:underline">View</a>
+										<a
+											href={resolve(`/contest/result?contestId=${c.id}`)}
+											class="text-xs font-bold text-primary-ink no-underline hover:underline"
+											>View</a
+										>
 									{/if}
 								</div>
 							{/each}
@@ -256,19 +324,28 @@
 				</div>
 			</div>
 
-			<div class="min-w-0 flex-[1_1_280px] flex flex-col gap-4.5">
+			<div class="flex min-w-0 flex-[1_1_280px] flex-col gap-4.5">
 				<div class="rounded-[20px] border border-border bg-surface p-6">
-					<div class="mb-4 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">Leagues</div>
+					<div class="mb-4 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+						Leagues
+					</div>
 					{#if myLeagues.length === 0}
 						<p class="text-xs text-text-muted">Not in any leagues yet.</p>
 					{:else}
 						<div class="flex flex-col gap-2.5">
 							{#each myLeagues as l (l.id)}
-								<a href={`/leagues/${l.id}`} class="text-sm font-bold text-text no-underline hover:underline">{l.name}</a>
+								<a
+									href={resolve(`/leagues/${l.id}`)}
+									class="text-sm font-bold text-text no-underline hover:underline">{l.name}</a
+								>
 							{/each}
 						</div>
 					{/if}
-					<a href="/leagues" class="mt-4 inline-block text-xs font-bold text-primary-ink no-underline hover:underline">Browse leagues &rarr;</a>
+					<a
+						href={resolve('/leagues')}
+						class="mt-4 inline-block text-xs font-bold text-primary-ink no-underline hover:underline"
+						>Browse leagues &rarr;</a
+					>
 				</div>
 			</div>
 		</div>

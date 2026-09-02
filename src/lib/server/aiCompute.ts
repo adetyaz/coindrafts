@@ -22,6 +22,7 @@
 // OpenAI-shaped so the request/response bodies are already identical.
 import { env } from '$env/dynamic/private';
 import { GROQ_API_KEY } from '$env/static/private';
+import { ZG_COMPUTE, ZG_IS_MAINNET } from '$lib/server/zgNetwork';
 import Groq from 'groq-sdk';
 import type { ChatCompletion, ChatCompletionChunk } from 'groq-sdk/resources/chat/completions';
 import type { Stream } from 'groq-sdk/lib/streaming';
@@ -51,15 +52,18 @@ export class AiConfigError extends Error {
  */
 export function getAiClient(): { client: Groq; model: string; via: '0g' | 'groq' } {
 	const wants0G = env.USE_0G_COMPUTE === 'true';
-	const apiKey = env.ZG_COMPUTE_API_KEY;
-	const baseURL = env.ZG_COMPUTE_BASE_URL;
-	const model = env.ZG_COMPUTE_MODEL;
+	const apiKey = ZG_COMPUTE.apiKey;
+	const baseURL = ZG_COMPUTE.baseURL;
+	const model = ZG_COMPUTE.model;
 
 	if (wants0G) {
+		// Var names reflect ZG_IS_MAINNET (zgNetwork.ts) — dev always reads the
+		// plain names, anything deployed reads the _MAINNET-suffixed ones.
+		const suffix = ZG_IS_MAINNET ? '_MAINNET' : '';
 		const missing = [
-			!apiKey && 'ZG_COMPUTE_API_KEY',
-			!baseURL && 'ZG_COMPUTE_BASE_URL',
-			!model && 'ZG_COMPUTE_MODEL'
+			!apiKey && `ZG_COMPUTE_API_KEY${suffix}`,
+			!baseURL && `ZG_COMPUTE_BASE_URL${suffix}`,
+			!model && `ZG_COMPUTE_MODEL${suffix}`
 		].filter(Boolean);
 
 		if (missing.length > 0) {

@@ -2,6 +2,7 @@
 // for SIWE sign-in in Nav.svelte — needed here too for sending a real
 // transaction (claiming an achievement) from the browser.
 import { appKit } from '$lib/appkit';
+import { dev } from '$app/environment';
 
 export type MaybeEthereum = {
 	request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -21,8 +22,11 @@ export function getEvmWalletProvider(): { address: string; provider: MaybeEthere
 	return { address: account.address, provider: evm };
 }
 
-// 0G Chain — Galileo testnet. Public network parameters, safe to hardcode
-// client-side (mirrors ACHIEVEMENTS_RPC_URL server-side).
+// 0G Chain — testnet and mainnet params. Public network info, safe to
+// hardcode client-side (mirrors zgNetwork.ts's server-side equivalents).
+// `dev` (true only under `npm run dev`) picks which one — same rule as
+// zgNetwork.ts, so local dev and a deployed instance never target the wrong
+// chain for a claim transaction.
 const ZERO_G_TESTNET = {
 	chainId: '0x40DA', // 16602
 	chainName: '0G-Galileo-Testnet',
@@ -30,6 +34,16 @@ const ZERO_G_TESTNET = {
 	rpcUrls: ['https://evmrpc-testnet.0g.ai'],
 	blockExplorerUrls: ['https://chainscan-galileo.0g.ai']
 };
+
+const ZERO_G_MAINNET = {
+	chainId: '0x4115', // 16661
+	chainName: '0G-Mainnet',
+	nativeCurrency: { name: '0G', symbol: 'OG', decimals: 18 },
+	rpcUrls: ['https://evmrpc.0g.ai'],
+	blockExplorerUrls: ['https://chainscan.0g.ai']
+};
+
+const ZERO_G_CHAIN = dev ? ZERO_G_TESTNET : ZERO_G_MAINNET;
 
 /**
  * AppKit deliberately never pushes a `defaultNetwork` at connect time (see
@@ -39,18 +53,18 @@ const ZERO_G_TESTNET = {
  * has to be switched before signing, or the wallet just signs against the
  * wrong network. Throws if the user rejects the switch/add prompt.
  */
-export async function ensureZeroGTestnet(provider: MaybeEthereum): Promise<void> {
+export async function ensureZeroGChain(provider: MaybeEthereum): Promise<void> {
 	try {
 		await provider.request({
 			method: 'wallet_switchEthereumChain',
-			params: [{ chainId: ZERO_G_TESTNET.chainId }]
+			params: [{ chainId: ZERO_G_CHAIN.chainId }]
 		});
 	} catch (err) {
 		const code = (err as { code?: number })?.code;
 		if (code !== 4902) throw err; // 4902 = chain not added to wallet yet
 		await provider.request({
 			method: 'wallet_addEthereumChain',
-			params: [ZERO_G_TESTNET]
+			params: [ZERO_G_CHAIN]
 		});
 	}
 }

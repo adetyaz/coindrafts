@@ -1,14 +1,15 @@
 // Word of the Day — a standalone daily vocabulary ritual, its own feature on
 // the Knowledge Base page, distinct from the Gauntlet. Both draw from the
 // SAME AI-generated, 0G-Storage-backed vocab pool (see ensureVocabPool in
-// gauntlet.ts) — this is deliberately not a second, separate generator. On a
-// day the Gauntlet happens to roll its 'vocab' category, both surfaces show
-// the same term; on other days Word of the Day still has its own, since it
-// picks independently from the same shared pool rather than depending on
-// Gauntlet's category roll.
+// gauntlet.ts) — this is deliberately not a second, separate generator. They
+// must never show the same term on the same day though: if the Gauntlet's
+// 'vocab' category has already been seeded for today, its term is excluded
+// here before picking. The matching exclusion runs the other way in
+// gauntlet.ts's pickFromVocabPool, so whichever of the two seeds second is
+// the one that actually avoids the collision.
 import { db } from '$lib/server/db';
-import { dailyTerms, users, vocabPool } from '$lib/server/schema';
-import { eq, sql } from 'drizzle-orm';
+import { dailyTerms, users, vocabPool, gauntletQuestions } from '$lib/server/schema';
+import { and, eq, sql } from 'drizzle-orm';
 import { ensureVocabPoolReady } from '$lib/server/gauntlet';
 
 // Static fallback — reached only if the shared vocab pool is completely
@@ -92,9 +93,20 @@ export async function ensureTodayTermSeeded(today = new Date().toISOString().spl
 
 	let t: TermRecord;
 	if (pool.length > 0) {
-		// Same deterministic pick Gauntlet's vocab category uses on the pool —
-		// on a day that lines up, both surfaces genuinely show the same term.
-		const entry = pool[hashDate(today) % pool.length];
+		const todaysGauntletTerm = await db
+			.select({ term: gauntletQuestions.term })
+			.from(gauntletQuestions)
+			.where(
+				and(eq(gauntletQuestions.activeDate, sql`${today}::date`), eq(gauntletQuestions.category, 'vocab'))
+			)
+			.limit(1)
+			.then((rows) => rows[0]?.term ?? null);
+
+		const candidates = todaysGauntletTerm ? pool.filter((p) => p.term !== todaysGauntletTerm) : pool;
+		// Last resort if the pool is too small to exclude anything from — accept
+		// the rare collision rather than fail to seed a term at all.
+		const usable = candidates.length > 0 ? candidates : pool;
+		const entry = usable[hashDate(today) % usable.length];
 		t = {
 			term: entry.term,
 			definition: entry.correctAnswer,

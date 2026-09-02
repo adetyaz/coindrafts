@@ -118,7 +118,9 @@
 			<h1 class="text-[40px] leading-none font-black tracking-[-0.04em]">AI Mentor</h1>
 			<p class="mt-2 text-sm text-text-muted">Ask about sectors, tokens, or your last contest</p>
 		</div>
-		<span class="font-mono text-xs text-text-muted">{messages.filter((m) => m.role === 'user').length} messages this session</span>
+		<span class="font-mono text-xs text-text-muted"
+			>{messages.filter((m) => m.role === 'user').length} messages this session</span
+		>
 	</div>
 
 	<div
@@ -127,7 +129,7 @@
 	>
 		{#if messages.length === 0}
 			<div class="flex h-full flex-col items-center justify-center gap-5 text-center">
-				<p class="max-w-[40ch] text-sm text-text-muted">
+				<p class="text-sm text-text-muted">
 					Ask about a token, a sector, or how to build your lineup.
 				</p>
 				<div class="flex flex-wrap justify-center gap-2">
@@ -146,7 +148,9 @@
 			{#each messages as msg, i (i)}
 				{#if msg.role === 'user'}
 					<div class="flex justify-end">
-						<div class="max-w-[70%] rounded-[18px_18px_4px_18px] bg-primary px-4.5 py-3.5 text-sm leading-relaxed font-medium whitespace-pre-wrap text-text">
+						<div
+							class="max-w-[70%] rounded-[18px_18px_4px_18px] bg-primary px-4.5 py-3.5 text-sm leading-relaxed font-medium whitespace-pre-wrap text-text"
+						>
 							{msg.content}
 						</div>
 					</div>
@@ -154,12 +158,20 @@
 					<div class="flex gap-3">
 						<div class="h-8 w-8 shrink-0 rounded-[9px] border border-border bg-surface-alt"></div>
 						<div class="max-w-[76%]">
-							<div class="rounded-[18px_18px_18px_4px] border border-border bg-surface px-4.5 py-4 text-sm leading-relaxed whitespace-pre-wrap text-text-body">
+							<div
+								class="rounded-[18px_18px_18px_4px] border border-border bg-surface px-4.5 py-4 text-sm leading-relaxed whitespace-pre-wrap text-text-body"
+							>
 								{#if msg.content === '' && streaming && i === messages.length - 1}
 									<span class="inline-flex items-center gap-1.5 py-1">
 										<span class="anim-bounce h-[7px] w-[7px] rounded-full bg-primary"></span>
-										<span class="anim-bounce h-[7px] w-[7px] rounded-full bg-primary" style="animation-delay:0.16s"></span>
-										<span class="anim-bounce h-[7px] w-[7px] rounded-full bg-primary" style="animation-delay:0.32s"></span>
+										<span
+											class="anim-bounce h-[7px] w-[7px] rounded-full bg-primary"
+											style="animation-delay:0.16s"
+										></span>
+										<span
+											class="anim-bounce h-[7px] w-[7px] rounded-full bg-primary"
+											style="animation-delay:0.32s"
+										></span>
 									</span>
 								{:else}
 									{msg.content}
@@ -193,7 +205,9 @@
 		{/if}
 	</div>
 
-	<div class="mt-3.5 flex items-center gap-2.5 rounded-full border border-border bg-surface p-2 pl-5">
+	<div
+		class="mt-3.5 flex items-center gap-2.5 rounded-full border border-border bg-surface p-2 pl-5"
+	>
 		<input
 			bind:value={input}
 			onkeydown={handleKeydown}
