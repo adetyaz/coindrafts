@@ -1,4 +1,33 @@
 <script lang="ts">
+	import architectureDiagram from '$lib/assets/coindraft_architecture.svg';
+	import userFlowDiagram from '$lib/assets/coindraft_user_flow.svg';
+	import walletAuthDiagram from '$lib/assets/wallet_auth_flow.svg';
+	import scoringFlowDiagram from '$lib/assets/scoring_resolution_flow.svg';
+	import rateLimitDiagram from '$lib/assets/rate_limit_flow.svg';
+
+	// Each diagram sits inside the section it documents — they ARE the
+	// architecture and the technical flows, not a gallery bolted on the side.
+	const TECHNICAL_FLOWS = [
+		{
+			id: 'flow-auth',
+			title: 'Signing in',
+			lead: 'Two wallet families, one session. EVM signs a SIWE message, Solana signs the same nonce with ed25519, and both converge on a single HMAC-signed cookie — no passwords, no session table.',
+			src: walletAuthDiagram
+		},
+		{
+			id: 'flow-scoring',
+			title: 'Scoring and resolution',
+			lead: 'What happens when a contest\'s window closes. The two guards are the important part: it refuses to settle before the real end time, and refuses to score at all if any exit price is missing rather than treating a failed fetch as "didn\'t move".',
+			src: scoringFlowDiagram
+		},
+		{
+			id: 'flow-prices',
+			title: 'Getting prices without getting rate-limited',
+			lead: 'The draft pool used to be capped at 30 tokens because each one cost its own request. One batch call now covers the whole market, which is what made ~170 tokens draftable.',
+			src: rateLimitDiagram
+		}
+	];
+
 	const SECTORS_LEGEND = [
 		{ label: 'L1', desc: 'blue-chip base layers', color: 'var(--color-sector-l1)' },
 		{ label: 'L2', desc: 'scaling networks', color: 'var(--color-sector-l2)' },
@@ -86,7 +115,6 @@
 	];
 
 	const NEXT = [
-		{ name: 'Move to 0G mainnet', desc: 'Everything above works on 0G\'s test network today. Mainnet is the same setup, real network.' },
 		{ name: 'Real-money wagers', desc: 'Wagers work end to end right now, using in-game points. Real money is the next step, on the same system.' },
 		{ name: 'More badges', desc: 'Four exist today. Adding more doesn\'t need new code — just deciding what to add.' },
 		{ name: 'Fair tiebreaks in tournaments', desc: 'Right now a tie is broken arbitrarily. Needs a real rule.' },
@@ -131,21 +159,25 @@
 		{ label: 'Learn', href: '#learn' },
 		{ label: 'Engagement', href: '#engagement' },
 		{ label: '0G Integration', href: '#0g' },
-		{ label: "What's Next", href: '#next' },
 		{ label: 'Architecture', href: '#architecture' },
+		{ label: 'Technical Flows', href: '#flows', sub: true },
 		{ label: 'Tech Stack', href: '#stack' },
+		{ label: "What's Next", href: '#next' },
 		{ label: 'Known Limitations', href: '#limitations' }
 	];
 </script>
 
-<div class="grid grid-cols-[200px_1fr] gap-10 max-[860px]:grid-cols-1">
+<div
+	class="mx-auto grid max-w-[1180px] grid-cols-[210px_1fr] gap-12 px-7 pt-7 pb-18 max-[860px]:grid-cols-1 max-[860px]:gap-6"
+>
 	<aside class="max-[860px]:hidden">
-		<div class="sticky top-16 flex flex-col gap-1">
+		<div class="sticky top-16 flex flex-col gap-0.5 border-l border-border pl-3">
 			{#each NAV as item (item.href)}
 				<a
 					href={item.href}
-					class="rounded px-2 py-1.5 text-sm font-medium text-text-secondary no-underline transition hover:bg-hover hover:text-text"
-					>{item.label}</a
+					class="rounded py-1.5 no-underline transition hover:bg-hover hover:text-text {item.sub
+						? 'pr-2 pl-5 text-[13px] font-medium text-text-muted'
+						: 'px-2 text-sm font-medium text-text-secondary'}">{item.label}</a
 				>
 			{/each}
 		</div>
@@ -167,7 +199,7 @@
 		</div>
 
 		<section id="overview" class="scroll-mt-16">
-			<h2 class="text-xl font-black text-text">Overview</h2>
+			<h2 class="flex items-center gap-2.5 text-[22px] font-black tracking-[-0.02em] text-text before:h-2 before:w-2 before:rounded-full before:bg-primary">Overview</h2>
 			<p class="mt-1 mb-4 text-sm text-text-muted">Wallet-only identity. No email, no password, ever.</p>
 
 			<div class="grid grid-cols-4 gap-3 max-sm:grid-cols-2">
@@ -191,7 +223,7 @@
 		</section>
 
 		<section id="sectors" class="scroll-mt-16">
-			<h2 class="text-xl font-black text-text">Draft sectors</h2>
+			<h2 class="flex items-center gap-2.5 text-[22px] font-black tracking-[-0.02em] text-text before:h-2 before:w-2 before:rounded-full before:bg-primary">Draft sectors</h2>
 			<p class="mt-1 mb-4 text-sm text-text-muted">Every lineup fills exactly one slot per sector.</p>
 			<div class="flex flex-wrap gap-2">
 				{#each SECTORS_LEGEND as s (s.label)}
@@ -206,7 +238,7 @@
 		</section>
 
 		<section id="flow" class="scroll-mt-16">
-			<h2 class="text-xl font-black text-text">How it works</h2>
+			<h2 class="flex items-center gap-2.5 text-[22px] font-black tracking-[-0.02em] text-text before:h-2 before:w-2 before:rounded-full before:bg-primary">How it works</h2>
 			<p class="mt-1 mb-4 text-sm text-text-muted">Start to finish, in order.</p>
 			<div class="flex flex-col gap-2.5">
 				{#each FLOW as f, i (f.step)}
@@ -219,11 +251,14 @@
 					</div>
 				{/each}
 			</div>
+			<div class="mt-5 overflow-x-auto rounded-[20px] border border-border bg-white p-5">
+				<img src={userFlowDiagram} alt="User flow — landing through wallet connect, mode choice, draft, race, result and badge claim" class="mx-auto block h-auto max-w-full" />
+			</div>
 		</section>
 
 		{#each BUILT as group (group.id)}
 			<section id={group.id} class="scroll-mt-16">
-				<h2 class="text-xl font-black text-text">{group.title}</h2>
+				<h2 class="flex items-center gap-2.5 text-[22px] font-black tracking-[-0.02em] text-text before:h-2 before:w-2 before:rounded-full before:bg-primary">{group.title}</h2>
 				<p class="mt-1 mb-4 text-sm text-text-muted">{group.sub}</p>
 				<div class="flex flex-col gap-2.5">
 					{#each group.features as f (f.name)}
@@ -244,7 +279,7 @@
 		{/each}
 
 		<section id="0g" class="scroll-mt-16">
-			<h2 class="text-xl font-black text-text">0G integration</h2>
+			<h2 class="flex items-center gap-2.5 text-[22px] font-black tracking-[-0.02em] text-text before:h-2 before:w-2 before:rounded-full before:bg-primary">0G integration</h2>
 			<p class="mt-1 mb-4 text-sm text-text-muted">
 				Everything below was checked against the live network directly — not assumed from docs.
 			</p>
@@ -263,25 +298,51 @@
 			</div>
 		</section>
 
-		<section id="next" class="scroll-mt-16">
-			<h2 class="text-xl font-black text-text">What's next</h2>
-			<p class="mt-1 mb-4 text-sm text-text-muted">In order.</p>
-			<div class="flex flex-col gap-2.5">
-				{#each NEXT as n, i (n.name)}
-					<div class="flex items-start gap-3 rounded-[20px] border border-border bg-surface px-4 py-3.5">
-						<span class="mt-0.5 shrink-0 font-mono text-sm font-bold text-primary">{i + 1}</span>
-						<div>
-							<h4 class="text-[15px] font-bold text-text">{n.name}</h4>
-							<p class="mt-1 text-[13.5px] text-text-secondary">{n.desc}</p>
-						</div>
-					</div>
-				{/each}
-			</div>
-		</section>
 
 		<section id="architecture" class="scroll-mt-16">
-			<h2 class="text-xl font-black text-text">Architecture</h2>
-			<p class="mt-1 mb-4 text-sm text-text-muted">How each piece actually behaves, in plain terms.</p>
+			<h2 class="flex items-center gap-2.5 text-[22px] font-black tracking-[-0.02em] text-text before:h-2 before:w-2 before:rounded-full before:bg-primary">Architecture</h2>
+			<div class="mt-3 mb-5 grid grid-cols-[1.35fr_1fr] gap-7 max-[720px]:grid-cols-1 max-[720px]:gap-4">
+				<div>
+					<p class="m-0 text-[15.5px] leading-[1.7] text-text-body">
+						Two paths leave the browser. Everything game-related — drafting, matchmaking, scoring,
+						settlement — goes through the SvelteKit server, which owns all state in Postgres and talks
+						outward to market data and 0G Compute.
+					</p>
+					<p class="mt-3.5 mb-0 text-[15.5px] leading-[1.7] text-text-body">
+						The badge claim deliberately does not. The server signs a voucher off-chain and hands it back;
+						the player's own wallet sends the transaction straight to 0G Chain and pays its own gas. That
+						split is the point — a badge is something the player provably did, not something we minted on
+						their behalf.
+					</p>
+				</div>
+				<div class="rounded-[18px] border border-border bg-surface p-5">
+					<div class="mb-3 text-[10.5px] font-bold tracking-wide text-text-muted uppercase">At a glance</div>
+					<p class="mt-0 mb-3 text-[12.5px] leading-[1.5] text-text-muted">
+						Diagram below follows the <a href="https://c4model.com/" target="_blank" rel="noopener noreferrer" class="font-bold text-primary-ink hover:underline">C4 model</a> — level 2, containers.
+					</p>
+					<dl class="m-0 flex flex-col gap-3">
+						<div>
+							<dt class="text-[13px] font-extrabold text-text">State</dt>
+							<dd class="m-0 text-[13px] leading-[1.5] text-text-secondary">One Postgres database. No queue, no cache server.</dd>
+						</div>
+						<div>
+							<dt class="text-[13px] font-extrabold text-text">Rendering</dt>
+							<dd class="m-0 text-[13px] leading-[1.5] text-text-secondary">Client-side; the server is API routes only.</dd>
+						</div>
+						<div>
+							<dt class="text-[13px] font-extrabold text-text">Resolution</dt>
+							<dd class="m-0 text-[13px] leading-[1.5] text-text-secondary">Triggered by any incoming request, plus a daily cron.</dd>
+						</div>
+						<div>
+							<dt class="text-[13px] font-extrabold text-text">On-chain</dt>
+							<dd class="m-0 text-[13px] leading-[1.5] text-text-secondary">Only the badge claim, and it's wallet-initiated.</dd>
+						</div>
+					</dl>
+				</div>
+			</div>
+			<div class="mb-5 overflow-x-auto rounded-[20px] border border-border bg-white p-5">
+				<img src={architectureDiagram} alt="System architecture — the browser's two outbound paths, the server's dependencies, and the direct wallet-to-chain badge claim" class="mx-auto block h-auto max-w-full" />
+			</div>
 			<div class="overflow-x-auto rounded-[20px] border border-border">
 				<table class="w-full min-w-[480px] border-collapse text-[13.5px]">
 					<thead>
@@ -304,10 +365,30 @@
 					</tbody>
 				</table>
 			</div>
+			<div id="flows" class="mt-10 scroll-mt-16 border-t border-border pt-8">
+				<h3 class="text-[18px] font-black tracking-[-0.02em] text-text">Technical flows</h3>
+				<p class="mt-1.5 mb-6 text-sm text-text-muted">
+					The three paths through that architecture worth tracing end to end.
+				</p>
+				<div class="flex flex-col gap-8">
+					{#each TECHNICAL_FLOWS as f (f.id)}
+						<div id={f.id} class="scroll-mt-16">
+							<div class="mb-4 border-l-2 border-primary pl-4">
+								<h4 class="text-[16px] font-extrabold tracking-[-0.01em] text-text">{f.title}</h4>
+								<p class="mt-2 mb-0 text-[15px] leading-[1.7] text-text-body">{f.lead}</p>
+							</div>
+							<div class="overflow-x-auto rounded-[20px] border border-border bg-white p-5">
+								<img src={f.src} alt={`${f.title} — ${f.lead}`} class="mx-auto block h-auto max-w-full" />
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
 		</section>
 
+
 		<section id="stack" class="scroll-mt-16">
-			<h2 class="text-xl font-black text-text">Tech stack</h2>
+			<h2 class="flex items-center gap-2.5 text-[22px] font-black tracking-[-0.02em] text-text before:h-2 before:w-2 before:rounded-full before:bg-primary">Tech stack</h2>
 			<div class="mt-4 overflow-x-auto rounded-[20px] border border-border">
 				<table class="w-full min-w-[380px] border-collapse text-[13.5px]">
 					<thead>
@@ -332,8 +413,24 @@
 			</div>
 		</section>
 
+
+		<section id="next" class="scroll-mt-16">
+			<h2 class="flex items-center gap-2.5 text-[22px] font-black tracking-[-0.02em] text-text before:h-2 before:w-2 before:rounded-full before:bg-primary">What's next</h2>
+			<p class="mt-1 mb-4 text-sm text-text-muted">In order.</p>
+			<div class="flex flex-col gap-2.5">
+				{#each NEXT as n, i (n.name)}
+					<div class="flex items-start gap-3 rounded-[20px] border border-border bg-surface px-4 py-3.5">
+						<span class="mt-0.5 shrink-0 font-mono text-sm font-bold text-primary">{i + 1}</span>
+						<div>
+							<h4 class="text-[15px] font-bold text-text">{n.name}</h4>
+							<p class="mt-1 text-[13.5px] text-text-secondary">{n.desc}</p>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</section>
 		<section id="limitations" class="scroll-mt-16">
-			<h2 class="text-xl font-black text-text">Known limitations</h2>
+			<h2 class="flex items-center gap-2.5 text-[22px] font-black tracking-[-0.02em] text-text before:h-2 before:w-2 before:rounded-full before:bg-primary">Known limitations</h2>
 			<div class="mt-4 flex flex-col gap-2.5">
 				{#each LIMITATIONS as l (l.name)}
 					<div class="rounded-[20px] border border-border bg-surface px-4 py-3.5">

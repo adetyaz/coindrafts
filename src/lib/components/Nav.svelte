@@ -25,6 +25,11 @@
 	// mounted for the whole session, so it polls its own live figure instead
 	// of trusting that snapshot.
 	let liveXp = $state<number | null>(null);
+	// A persistent way back into whatever match/lobby you're already part of,
+	// visible on every page — not just the dashboard, and not requiring a
+	// detour through matchmaking's picker screen hoping it silently redirects
+	// you. Nav stays mounted the whole session, so this polls too.
+	let activeMatch = $state<{ href: string; label: string } | null>(null);
 
 	const NAV_GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
 		// Every entry here must be somewhere a user can act from a cold click.
@@ -75,6 +80,46 @@
 		}
 		refreshXp();
 		const t = setInterval(refreshXp, 20_000);
+		return () => clearInterval(t);
+	});
+
+	onMount(() => {
+		if (!user) return;
+		async function refreshActiveMatch() {
+			try {
+				const res = await fetch('/api/contests');
+				if (res.ok) {
+					const contests: Array<Record<string, unknown>> = await res.json();
+					const mine = contests.find((c) => c.status !== 'resolved');
+					if (mine) {
+						activeMatch = mine.myLineupLocked
+							? { href: `/game/${mine.id}`, label: mine.status === 'live' ? 'Watch race' : 'Active match' }
+							: { href: `/draft?contestId=${mine.id}&type=${mine.type ?? 'daily'}${mine.isPaper ? '&mode=paper' : ''}`, label: 'Continue draft' };
+						return;
+					}
+				}
+			} catch {
+				/* fall through to checking lobbies */
+			}
+			try {
+				const res = await fetch('/api/lobby/mine');
+				if (res.ok) {
+					const lobbies: Array<Record<string, unknown>> = await res.json();
+					const mine = lobbies[0];
+					if (mine) {
+						activeMatch = mine.myLineupLocked
+							? { href: `/lobby/${mine.id}/result`, label: mine.status === 'live' ? 'Watch' : 'Active match' }
+							: { href: `/draft?lobbyId=${mine.id}`, label: 'Continue draft' };
+						return;
+					}
+				}
+			} catch {
+				/* no active match found — that's fine, just hide the pill */
+			}
+			activeMatch = null;
+		}
+		refreshActiveMatch();
+		const t = setInterval(refreshActiveMatch, 20_000);
 		return () => clearInterval(t);
 	});
 
@@ -404,6 +449,15 @@
 	</div>
 
 	<div class="flex shrink-0 items-center gap-2.5">
+		{#if user && activeMatch}
+			<a
+				href={activeMatch.href}
+				class="flex items-center gap-2 rounded-full bg-primary px-3.5 py-1.5 text-xs font-extrabold whitespace-nowrap text-text no-underline transition hover:bg-primary-hover"
+			>
+				<span class="anim-blink h-1.5 w-1.5 rounded-full bg-text"></span>
+				{activeMatch.label}
+			</a>
+		{/if}
 		{#if user}
 			<span class="font-mono text-xs whitespace-nowrap text-text-muted">{liveXp ?? user.xpTotal ?? 0} XP</span
 			>
