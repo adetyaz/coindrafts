@@ -14,15 +14,50 @@
 	let myXp = $state(0);
 	let loading = $state(true);
 	let error = $state('');
+	// The two "not resolved yet" responses aren't errors — they mean the
+	// lobby/tournament stage is still waiting on other players or hasn't gone
+	// live yet. This used to be checked once and left as a dead-end error
+	// message with no way to see when it actually resolves; now it polls
+	// until it does, the same way the 1v1 race screen already does.
+	let waiting = $state(false);
+	const WAITING_MESSAGES = new Set([
+		'Not every player has submitted a lineup yet',
+		'Lobby is not live yet'
+	]);
+	let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-	onMount(async () => {
+	onMount(() => {
 		const lobbyId = page.params.id;
+		if (!lobbyId) {
+			error = 'No lobby selected';
+			loading = false;
+			return;
+		}
+		load(lobbyId);
+		pollTimer = setInterval(() => load(lobbyId), 5000);
+		return () => {
+			if (pollTimer) clearInterval(pollTimer);
+		};
+	});
+
+	async function load(lobbyId: string) {
 		try {
 			const res = await fetch(`/api/lobby/${lobbyId}/result`);
 			if (!res.ok) {
 				const err = await res.json().catch(() => ({}));
-				throw new Error(err.error ?? 'Failed to load lobby result');
+				const message = err.error ?? 'Failed to load lobby result';
+				if (WAITING_MESSAGES.has(message)) {
+					waiting = true;
+					loading = false;
+					return;
+				}
+				throw new Error(message);
 			}
+			if (pollTimer) {
+				clearInterval(pollTimer);
+				pollTimer = null;
+			}
+			waiting = false;
 			const data = await res.json();
 			leaderboard = data.leaderboard ?? [];
 			breakdown = data.breakdown ?? [];
@@ -36,11 +71,15 @@
 				}
 			}
 		} catch (e) {
+			if (pollTimer) {
+				clearInterval(pollTimer);
+				pollTimer = null;
+			}
 			error = e instanceof Error ? e.message : 'Could not load result';
 		} finally {
 			loading = false;
 		}
-	});
+	}
 
 	const ordinal = (n: number) => {
 		const s = ['th', 'st', 'nd', 'rd'];
@@ -62,6 +101,20 @@
 <div class="mx-auto max-w-[1360px] px-7 pt-7 pb-18">
 	{#if loading}
 		<p class="mb-4 text-sm text-text-muted">Resolving lobby and computing scores…</p>
+	{:else if waiting}
+		<div class="rounded-[24px] border border-border bg-surface p-11 text-center max-sm:p-6">
+			<div class="anim-blink mx-auto h-2.5 w-2.5 rounded-full bg-primary"></div>
+			<div class="mt-4 text-[28px] font-black tracking-[-0.03em]">Waiting on the rest of the lobby</div>
+			<p class="mt-3 text-[15px] text-text-muted">
+				Not everyone has locked a lineup yet, or the window hasn't closed. This checks again automatically —
+				no need to keep refreshing.
+			</p>
+			<a
+				href="/dashboard"
+				class="mt-6 inline-flex h-12 items-center rounded-full border border-border bg-transparent px-8 text-sm font-bold text-text no-underline"
+				>Back to dashboard</a
+			>
+		</div>
 	{:else if error}
 		<p class="mb-4 text-sm text-negative-ink">{error}</p>
 	{:else}

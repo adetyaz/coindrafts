@@ -9,6 +9,7 @@
 	import type { BadgeDef } from '$lib/badges';
 
 	let contests = $state<Array<Record<string, unknown>>>([]);
+	let myLobbies = $state<Array<Record<string, unknown>>>([]);
 	let badges = $state<(BadgeDef & { earned: boolean; earnedAt: string | null })[]>([]);
 	let sectors = $state<Array<Record<string, unknown>>>([]);
 	let alerts = $state<Array<Record<string, unknown>>>([]);
@@ -40,6 +41,7 @@
 	onMount(async () => {
 		await Promise.all([
 			loadContests(),
+			loadMyLobbies(),
 			loadSectors(),
 			loadAlerts(),
 			loadTokens(),
@@ -48,6 +50,15 @@
 		]);
 		loading = false;
 	});
+
+	async function loadMyLobbies() {
+		try {
+			const res = await fetch('/api/lobby/mine');
+			if (res.ok) myLobbies = await res.json();
+		} catch (error) {
+			console.error('Failed to load active lobbies:', error);
+		}
+	}
 
 	async function loadBadges() {
 		try {
@@ -462,4 +473,48 @@
 			</div>
 		{/if}
 	</div>
+
+	{#if myLobbies.length > 0}
+		<div class="mt-4.5 rounded-[20px] border border-border bg-surface p-[22px]">
+			<div class="mb-4.5 text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+				My multiplayer &amp; tournaments
+			</div>
+			<div class="flex flex-col divide-y divide-border">
+				{#each myLobbies as l, i (String(l.id ?? i))}
+					<div class="flex flex-wrap items-center justify-between gap-2.5 py-3">
+						<div class="flex flex-wrap items-center gap-2.5">
+							<span
+								class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
+								style={l.status === 'live'
+									? 'background:rgba(104,194,168,0.14);color:var(--color-mint-ink)'
+									: 'background:rgba(247,201,120,0.16);color:var(--color-warning-ink)'}
+								>{l.status}</span
+							>
+							<span class="text-[13px] font-bold">
+								{#if l.tournamentId}
+									{l.tournamentName ?? 'Tournament'} &middot; {l.tournamentStage === 1 ? 'Final' : 'Qualifier'}
+								{:else}
+									Multiplayer lobby
+								{/if}
+							</span>
+							<span class="font-mono text-[11px] text-text-muted">{String(l.id ?? '').slice(0, 8)}…</span>
+						</div>
+						{#if l.myLineupLocked}
+							<a
+								href={`/lobby/${l.id}/result`}
+								class="rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-text no-underline"
+								>{l.status === 'live' ? 'Watch' : 'Waiting for others'}</a
+							>
+						{:else}
+							<a
+								href={`/draft?lobbyId=${l.id}`}
+								class="rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-text no-underline"
+								>Continue draft</a
+							>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
 </div>
