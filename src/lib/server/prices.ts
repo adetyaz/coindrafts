@@ -18,7 +18,17 @@
 // volume for every symbol in the same call. Measured weight 80 against a
 // 6,000/minute budget — 1.3% — so keeping the richer payload costs nothing
 // meaningful and avoids losing the 24h change the dashboard and ticker rely on.
-const BINANCE_TICKER = 'https://api.binance.com/api/v3/ticker/24hr';
+//
+// data-api.binance.vision, NOT api.binance.com: Binance geo-blocks the main
+// api.binance.com domain for US-origin requests (HTTP 451) — and Vercel's
+// serverless functions run from a US region by default. Worked in local dev
+// (a normal residential/office connection isn't blocked) and returned an
+// empty token pool in production — every price request failed, got swallowed
+// to null by getAllPrices()'s catch, and every token was filtered out for
+// having no price. data-api.binance.vision is Binance's own purpose-built,
+// unrestricted, no-auth mirror of the public market-data endpoints — same
+// response shape, not a workaround.
+const BINANCE_TICKER = 'https://data-api.binance.vision/api/v3/ticker/24hr';
 const CACHE_TTL_MS = 10_000;
 const QUOTE = 'USDT';
 
