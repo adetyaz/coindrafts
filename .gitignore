@@ -22,6 +22,10 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# One-off scratch scripts (repo-root only — scripts/ and contracts/scripts/
+# are real, kept tooling and are unaffected by this)
+/_tmp-*
+
 
 /docs-project
 .vscode

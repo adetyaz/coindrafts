@@ -461,10 +461,10 @@ async function generateAIMarketQuestion(fetchFn?: SvelteFetch): Promise<Question
 // Unlike market questions, vocab is timeless, so it's generated in bulk and
 // reused across many days instead of costing an AI call every single day.
 
-const VOCAB_POOL_TARGET = 60; // aim to have this many entries banked
-const VOCAB_POOL_MIN = 20; // top up once the pool drops below this
+const VOCAB_POOL_TARGET = 100; // aim to have this many entries banked
+const VOCAB_POOL_MIN = 40; // top up once the pool drops below this
 const VOCAB_BATCH_CHUNK = 10; // items requested per AI call — small enough for the model to return reliably
-const VOCAB_BATCH_MAX_CALLS = 8; // safety cap on AI calls in one top-up pass
+const VOCAB_BATCH_MAX_CALLS = 10; // safety cap on AI calls in one top-up pass — covers reaching TARGET from empty in one pass
 
 type VocabItem = { term: string; question: string; options: { label: string; value: string }[]; correctAnswer: string };
 
