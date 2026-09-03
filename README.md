@@ -5,10 +5,11 @@
 > For the current technical architecture and 0G integration detail, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 **Demo videos:**
-- Short form: [youtu.be/DVWOqzw5of8](https://youtu.be/DVWOqzw5of8)
-- Long form — full walkthrough: [youtu.be/0E16bxQnfPw](https://youtu.be/0E16bxQnfPw)
+- [Coindraft Overview Demo](https://youtu.be/DVWOqzw5of8)
+- [CoinDraft Full Demo](https://youtu.be/0E16bxQnfPw)
 
-Live app: [coindrafts.vercel.app](https://coindrafts.vercel.app) · X post: [x.com/cupoftreats/status/2095517444487954774](https://x.com/cupoftreats/status/2095517444487954774)
+Live app: [coindrafts.vercel.app](https://coindrafts.vercel.app)
+X post: [x.com/cupoftreats/status/2095517444487954774](https://x.com/cupoftreats/status/2095517444487954774)
 
 ---
 
@@ -113,31 +114,20 @@ Someone who wants to get into crypto but finds it overwhelming. The Gauntlet and
 
 ## 6. Product goals
 
-### Wave 1
+What's actually built and live, not a roadmap — see [Status](#status--whats-done-whats-left) below for what's still open.
 
-- Working head-to-head draft contest end to end
-- SoSoValue API integrated across 5 endpoints with caching
-- Sector Wars and Whale Watch live on dashboard
-- AI post-match breakdown via Groq + SoSoValue news feeds
-- Live Vercel deployment with demo account
-
-### Wave 2
-
-- Real opponent matchmaking (not just bot)
-- Leagues — create, join, season standings
-- Gauntlet daily challenges with XP → draft boost mechanic
-- SoDEX API integration for on-chain live price feeds
-- Weekly contest format
-- AI Mentor (conversational, grounded in live data)
-
-### Wave 3
-
-- Research Hub with sector memos and curated news
-- ✅ Badge and on-chain achievement system — soulbound ERC-721 badges on 0G Chain, claimed by the player from their own wallet. Live on mainnet, see [Mainnet Deployment](#mainnet-deployment).
-- Paper trading mode (sim before going live)
-- Real-money league prize pools via SoDEX
-- Full mobile-responsive polish
-- Risk controls, contest caps, responsible play mechanisms
+- Working head-to-head draft contest, end to end — real matchmaking, live race, automatic resolution.
+- SoSoValue API integrated across 5 endpoints, cached (see [SoSoValue API integration](#9-sosovalue-api-integration) below).
+- Sector Wars and Whale Flow live on the dashboard.
+- AI-generated post-match breakdown, grounded in real match data.
+- Live deployment on Vercel — [coindrafts.vercel.app](https://coindrafts.vercel.app).
+- Scrimmage mode — draft against a bot opponent, isolated from real rank/win-rate/badges.
+- Leagues — create, join, browse standings.
+- Daily Gauntlet challenges with an XP → sector-boost mechanic.
+- Both daily and weekly contest formats, weekly carrying a real XP multiplier.
+- AI Mentor — conversational, grounded in live sector/token/news data.
+- Knowledge Base — curated news plus an AI-generated Word of the Day, archived on 0G Storage.
+- On-chain achievement badges — soulbound ERC-721s on 0G Chain, claimed by the player from their own wallet, live on mainnet. See [Mainnet Deployment](#mainnet-deployment).
 
 ---
 
